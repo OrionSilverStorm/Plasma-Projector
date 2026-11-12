@@ -44,7 +44,7 @@ Amplitudes can't be read directly. Reading the full state (to see f(v)) needs ab
 - Realistic timeline: early fault-tolerant machines (about 2030+). This is why the field focuses on resource estimates now.
 
 ## Classical benchmark (currently parked in `archive/`)
-- `src/theory.py` → `landau_root`: the exact textbook answer from the plasma dispersion function, which we use to validate. This is a formula, not a simulation, so it stays.
+- `src/theory.py` → `landau_prediction`: the exact textbook answer from the plasma dispersion function, which we use to validate. This is a formula, not a simulation, so it stays.
 - `archive/classical_simulation.py` → `classical_solve`: a normal ODE solver. It took about 20 ms for our 1D1V problem. **Classical computers win easily at this size.** The demo is a correctness proof of the quantum algorithm, not a speed race. The advantage only appears at 3D3V reactor scale, where classical memory explodes.
 
 ## Likely judge questions

@@ -1,66 +1,73 @@
 """
-hamiltonian.py: turns the plasma equations into a quantum "Hamiltonian" matrix H.
+hamiltonian.py: turns the plasma equations into a quantum "Hamiltonian" matrix.
 
 THE PHYSICS (Engel, Smith & Parker 2019), in normalised units
 -------------------------------------------------------------
-Take a small ripple in the electron velocity distribution, f = F0(v) + f1, with one
-wavenumber k. The linearised Vlasov equation (particles) plus Ampere's law (field) give:
+Picture the electrons as a crowd with a bell-curve spread of velocities (the `background`).
+We add a small `ripple` to that crowd, shaped like a single wave with a given wavenumber.
+Two rules then describe what happens (the linearised Vlasov and Ampere equations):
 
-    d f1/dt = -i k v f1  -  v F0(v) E        (particles stream, and the field pushes them)
-    d E /dt =  integral( v f1 dv )            (moving electrons form a current that changes E)
+    rate of change of ripple = -i * wavenumber * velocity * ripple  -  velocity * background * field
+        (electrons coast along at their own speed, and the electric field pushes them)
+    rate of change of field  = sum over velocities of (velocity * ripple * velocity_spacing)
+        (moving electrons are an electric current, and currents change the field)
 
 QUANTUM TRICK
 -------------
-Quantum computers can only apply UNITARY evolutions, psi(t) = exp(-i H t) psi(0), where H is
-HERMITIAN (H equals its own conjugate transpose). Rescaling g = f1 / sqrt(F0) and putting v on
-a grid turns the equations above into exactly that form:
+Quantum computers can only apply UNITARY evolutions: new_state = exp(-i * hamiltonian * t) * old_state,
+where the hamiltonian matrix is HERMITIAN (it equals its own conjugate transpose). Dividing the
+ripple by sqrt(background) and putting velocity on a grid turns the rules above into exactly that:
 
-    d psi/dt = -i H psi,      psi = (E, u_1, ..., u_Nv),   u_j = sqrt(dv) * g(v_j)
+    state = (field, particle_1, ..., particle_N)
+            where particle_j = sqrt(velocity_spacing) * ripple(velocity_j) / sqrt(background(velocity_j))
 
-    H[j, j] = k v_j                    streaming: each velocity just spins its phase
-    H[0, j] = +i a_j                   coupling between the field and velocity j ...
-    H[j, 0] = -i a_j                   ... the conjugate entry, which makes H Hermitian
-    with a_j = v_j * sqrt(F0(v_j) * dv)
+    hamiltonian[j, j] = wavenumber * velocity_j     coasting: each velocity just rotates its phase
+    hamiltonian[0, j] = +i * coupling_j             link between the field and velocity j ...
+    hamiltonian[j, 0] = -i * coupling_j             ... its mirror entry, which makes the matrix Hermitian
+    with coupling_j = velocity_j * sqrt(background(velocity_j) * velocity_spacing)
 
-H is mostly zeros. It is an "arrowhead" matrix: a diagonal plus one full row and one full column.
+The matrix is mostly zeros. It is an "arrowhead": a diagonal plus one full row and one full column.
 """
 import numpy as np
 
 from src.config import Params
 
 
-def maxwellian(v: np.ndarray) -> np.ndarray:
-    """Background thermal distribution F0(v), a bell curve with unit thermal speed."""
-    return np.exp(-v**2 / 2) / np.sqrt(2 * np.pi)
+def background_distribution(velocities: np.ndarray) -> np.ndarray:
+    """How many electrons move at each velocity when undisturbed: a bell curve (the "Maxwellian")."""
+    return np.exp(-velocities**2 / 2) / np.sqrt(2 * np.pi)
 
 
-def build_hamiltonian(p: Params) -> np.ndarray:
-    """Build the (2^n x 2^n) Hermitian matrix H described in the module docstring."""
-    v = p.velocities
-    a = v * np.sqrt(maxwellian(v) * p.dv)          # field <-> velocity coupling strengths
+def build_hamiltonian(settings: Params) -> np.ndarray:
+    """Build the (2^n x 2^n) Hermitian matrix described in the module docstring."""
+    velocities = settings.velocities
+    coupling = velocities * np.sqrt(background_distribution(velocities) * settings.velocity_spacing)
 
-    size = p.n_v + 1                                # +1 because index 0 holds E
-    H = np.zeros((size, size), dtype=complex)
-    H[1:, 1:] = np.diag(p.k * v)                    # streaming term (diagonal)
-    H[0, 1:] = 1j * a                               # coupling row
-    H[1:, 0] = -1j * a                              # coupling column (conjugate of the row)
-    return H
+    size = settings.n_velocities + 1                                     # +1 because slot 0 holds the field
+    hamiltonian = np.zeros((size, size), dtype=complex)
+    hamiltonian[1:, 1:] = np.diag(settings.wavenumber * velocities)      # coasting term (diagonal)
+    hamiltonian[0, 1:] = 1j * coupling                                   # field <-> particle row
+    hamiltonian[1:, 0] = -1j * coupling                                  # mirror column (conjugate of the row)
+    return hamiltonian
 
 
-def initial_state(p: Params) -> np.ndarray:
+def initial_state(settings: Params) -> np.ndarray:
     """
-    Starting state psi(0): a small density ripple f1 = F0 (times epsilon, which drops out on normalising).
+    Starting state: a small density ripple shaped like the background itself
+    (times a tiny size factor, which disappears when we normalise).
 
-    The field must agree with that ripple through Gauss's law: i k E = -integral(f1 dv).
-    Starting with E alone would break Gauss's law and leave a fake non-decaying field.
+    The field must agree with that ripple through Gauss's law:
+        i * wavenumber * field = -(sum of ripple * velocity_spacing)
+    (extra electrons in one place create a field around them). Starting with a field and no
+    ripple would break Gauss's law and leave a fake field that never decays.
     """
-    f0 = maxwellian(p.velocities)
-    u = np.sqrt(p.dv * f0)                          # u_j = sqrt(dv) * f1/sqrt(F0) = sqrt(dv * F0)
-    E = 1j * np.sum(f0 * p.dv) / p.k                # Gauss's law, using the same discrete sum
-    psi = np.concatenate(([E], u)).astype(complex)
-    return psi / np.linalg.norm(psi)                # quantum states have length 1
+    background = background_distribution(settings.velocities)
+    particles = np.sqrt(settings.velocity_spacing * background)          # the rescaling from the docstring, with ripple = background
+    field = 1j * np.sum(background * settings.velocity_spacing) / settings.wavenumber   # Gauss's law, same discrete sum
+    state = np.concatenate(([field], particles)).astype(complex)
+    return state / np.linalg.norm(state)                                 # quantum states have length 1
 
 
 def field_energy(states: np.ndarray) -> np.ndarray:
-    """|E(t)|^2, the wave's electric field energy. On a quantum computer this is P(measure |0...0>)."""
+    """|field|^2 at every time: the wave's energy. On a quantum computer this is P(measure |0...0>)."""
     return np.abs(states[:, 0]) ** 2

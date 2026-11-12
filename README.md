@@ -10,7 +10,7 @@
 | Landau theory (dispersion relation) | −0.1534 |
 | **Quantum circuit (2nd-order Trotter)** | **−0.1538** |
 
-The circuit tracks theory within 5% across kλ_D = 0.3–0.7 (`figures/2_gamma_vs_k.png`).
+The circuit tracks theory within 5% across kλ_D = 0.3–0.7 (`figures/2_damping_vs_wavenumber.png`).
 
 **Novelty:** a stability classifier answers a reactor controller's yes/no question ("does this ripple fade before the magnets could react?") from a few measured probabilities. It never reads out the full quantum state, and that full readout is the bottleneck that limits most quantum PDE solvers.
 

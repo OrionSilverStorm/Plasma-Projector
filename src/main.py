@@ -19,89 +19,100 @@ from src.config import Params, plasma_scales  # noqa: E402
 from src.hamiltonian import field_energy  # noqa: E402
 from src.resources import circuit_costs, memory_scaling  # noqa: E402
 from src.simulate import classify_stability, envelope, fit_damping_rate, run_quantum  # noqa: E402
-from src.theory import landau_root  # noqa: E402
+from src.theory import landau_prediction  # noqa: E402
 
-FIT_START = 2.0   # skip the start-up transient before fitting the decay
+FIT_START = 2.0   # skip the start-up wobble before fitting the decay
 
 
-def step1_single_run(p: Params) -> None:
+def fit_end(settings: Params) -> float:
+    """End the decay fit safely before the fake revival (or at the end of the run, if that's sooner)."""
+    return min(settings.end_time, 0.8 * settings.fake_revival_time)
+
+
+def step1_single_run(settings: Params) -> None:
     """STEP 1: simulate one plasma wave on the quantum circuit and compare with the textbook formula."""
-    print(f"\n=== STEP 1: one run, k*lambda_D = {p.k}, {p.n_qubits} qubits, {p.n_v} velocity points ===")
-    quantum = field_energy(run_quantum(p))                          # quantum circuit (Trotter)
-    theory = landau_root(p.k)                                        # textbook dispersion relation
+    print(f"\n=== STEP 1: one run, wavenumber = {settings.wavenumber}, {settings.n_qubits} qubits, "
+          f"{settings.n_velocities} velocity points ===")
+    quantum_energy = field_energy(run_quantum(settings))            # quantum circuit (Trotter)
+    theory = landau_prediction(settings.wavenumber)                  # textbook dispersion relation
 
-    t_end = min(p.t_max, 0.8 * p.recurrence_time)
-    print(f"  Recurrence time (fake revival) T_R = {p.recurrence_time:.1f}; fit window [{FIT_START}, {t_end:.1f}]")
-    print(f"  Landau theory:      omega = {theory.real:.4f},  gamma = {theory.imag:.4f}")
-    print(f"  Quantum circuit:    gamma = {fit_damping_rate(p.times, quantum, FIT_START, t_end):.4f}")
-    print(f"  Saved {plots.plot_damping(p.times, quantum, theory.imag, p.k)}")
+    print(f"  Fake revival time = {settings.fake_revival_time:.1f}; fit window [{FIT_START}, {fit_end(settings):.1f}]")
+    print(f"  Landau theory:      oscillation rate = {theory.real:.4f},  damping rate = {theory.imag:.4f}")
+    print(f"  Quantum circuit:    damping rate = "
+          f"{fit_damping_rate(settings.times, quantum_energy, FIT_START, fit_end(settings)):.4f}")
+    print(f"  Saved {plots.plot_damping(settings.times, quantum_energy, theory.imag, settings.wavenumber)}")
 
 
-def step2_sweep_k(ks: np.ndarray, n_qubits: int) -> list:
-    """STEP 2: repeat for several wavelengths. Shorter waves (larger k) should damp faster."""
-    print("\n=== STEP 2: damping rate vs k*lambda_D ===")
-    runs, fitted, analytic = [], [], []
-    for k in ks:
-        p = Params(k=k, n_qubits=n_qubits)
-        energy = field_energy(run_quantum(p))
-        runs.append((p, energy))
-        fitted.append(fit_damping_rate(p.times, energy, FIT_START, min(p.t_max, 0.8 * p.recurrence_time)))
-        analytic.append(landau_root(k).imag)
-        print(f"  k = {k:.2f}: quantum gamma = {fitted[-1]:.4f}   theory gamma = {analytic[-1]:.4f}")
-    print(f"  Saved {plots.plot_gamma_vs_k(ks, fitted, analytic)}")
+def step2_sweep_wavenumber(wavenumbers: np.ndarray, n_qubits: int) -> list:
+    """STEP 2: repeat for several wavelengths. Shorter waves (larger wavenumber) should damp faster."""
+    print("\n=== STEP 2: damping rate vs wavenumber ===")
+    runs, quantum_rates, theory_rates = [], [], []
+    for wavenumber in wavenumbers:
+        settings = Params(wavenumber=wavenumber, n_qubits=n_qubits)
+        energy = field_energy(run_quantum(settings))
+        runs.append((settings, energy))
+        quantum_rates.append(fit_damping_rate(settings.times, energy, FIT_START, fit_end(settings)))
+        theory_rates.append(landau_prediction(wavenumber).imag)
+        print(f"  wavenumber = {wavenumber:.2f}: quantum damping rate = {quantum_rates[-1]:.4f}   "
+              f"theory damping rate = {theory_rates[-1]:.4f}")
+    print(f"  Saved {plots.plot_damping_vs_wavenumber(wavenumbers, quantum_rates, theory_rates)}")
     return runs
 
 
 def step3_stability(runs: list, threshold: float = 0.1, window: float = 3.0) -> None:
     """STEP 3 (novelty): the controller's yes/no question, answered from measurement shots."""
     print(f"\n=== STEP 3: stability classifier (threshold: {threshold:.0%} energy left) ===")
-    t_check = 8.0
-    for p, energy in runs:
-        r = classify_stability(p.times, energy, t_check, threshold, window)
-        verdict = "fades on its own" if r["damped"] else "CONTROLLER MUST ACT"
-        print(f"  k = {p.k:.2f}: measured {r['measured_ratio']:.3f} (true {r['true_ratio']:.3f}) "
-              f"at t = {t_check} -> {verdict}  [{r['circuit_runs']} circuit runs]")
+    check_time = 8.0
+    for settings, energy in runs:
+        result = classify_stability(settings.times, energy, check_time, threshold, window)
+        verdict = "fades on its own" if result["damped"] else "CONTROLLER MUST ACT"
+        print(f"  wavenumber = {settings.wavenumber:.2f}: measured {result['measured_ratio']:.3f} "
+              f"(true {result['true_ratio']:.3f}) at t = {check_time} -> {verdict}  "
+              f"[{result['circuit_runs']} circuit runs]")
 
-    # Heat map: remaining-energy fraction for every (k, response time).
-    p0 = runs[0][0]
-    keep = p0.times <= p0.t_max - window                             # envelope needs a full window ahead
-    ratios = np.array([envelope(p.times, e, window)[keep] for p, e in runs])
-    ks = np.array([p.k for p, _ in runs])
-    # Blank out cells near the fake grid "revival", so artefacts aren't mistaken for physics.
-    recurrence = np.array([[0.8 * p.recurrence_time - window] for p, _ in runs])
-    ratios[p0.times[keep][None, :] > recurrence] = np.nan
-    print(f"  Saved {plots.plot_stability_map(ks, p0.times[keep], ratios, threshold)}")
+    # Heat map: remaining-energy fraction for every (wavenumber, response time).
+    times = runs[0][0].times                                         # every run shares the same time grid
+    keep = times <= runs[0][0].end_time - window                     # envelope needs a full window ahead
+    ratios = np.array([envelope(settings.times, energy, window)[keep] for settings, energy in runs])
+    wavenumbers = np.array([settings.wavenumber for settings, _ in runs])
+    # Blank out cells near the fake grid revival, so artefacts aren't mistaken for physics.
+    last_trusted_time = np.array([[fit_end(settings) - window] for settings, _ in runs])
+    ratios[times[keep][None, :] > last_trusted_time] = np.nan
+    print(f"  Saved {plots.plot_stability_map(wavenumbers, times[keep], ratios, threshold)}")
 
 
-def step4_resources(n_values: list[int]) -> None:
+def step4_resources(qubit_counts: list[int]) -> None:
     """STEP 4: how big are the circuits, and how does memory compare with classical?"""
     print("\n=== STEP 4: resource estimates ===")
-    costs = circuit_costs(n_values)
+    costs = circuit_costs(qubit_counts)
     for c in costs:
-        print(f"  n = {c['n_qubits']} qubits ({c['grid_points']} grid points): {c['pauli_terms']} Pauli terms, "
-              f"{c['cx_per_step']} CNOTs/step, depth {c['depth_per_step']}/step")
+        print(f"  {c['n_qubits']} qubits ({c['grid_points']} grid points): {c['pauli_terms']} Pauli terms, "
+              f"{c['cnots_per_step']} CNOTs/step, depth {c['depth_per_step']}/step")
     memory = memory_scaling(np.array([16, 32, 64, 128, 256, 512, 1024]))
-    print("  3D3V reactor grid, N = 128 per dimension: "
+    print("  3D3V reactor grid, 128 points per axis: "
           f"{memory['classical_values'][3]:.1e} numbers classically vs {memory['qubits'][3]:.0f} qubits")
     print(f"  Saved {plots.plot_resources(costs, memory)}")
 
 
-def step5_real_units(gamma: float) -> None:
+def step5_real_units(damping_rate: float, wavenumber: float) -> None:
     """STEP 5: translate the normalised answer into seconds for real reactor conditions."""
-    print("\n=== STEP 5: real-world units (tokamak core: 10 keV, 1e20 m^-3) ===")
-    s = plasma_scales(temperature_ev=1e4, density_m3=1e20)
-    print(f"  plasma frequency = {s['omega_p']:.2e} rad/s, Debye length = {s['lambda_D'] * 1e6:.0f} micrometres")
-    print(f"  k*lambda_D = 0.5 means a wavelength of {2 * np.pi / 0.5 * s['lambda_D'] * 1e3:.2f} mm")
-    print(f"  energy e-folding time 1/(2|gamma|) = {1 / (2 * abs(gamma) * s['omega_p']) * 1e12:.1f} ps")
+    print("\n=== STEP 5: real-world units (tokamak core: 10 keV, 1e20 electrons per m^3) ===")
+    scales = plasma_scales(temperature_ev=1e4, density_m3=1e20)
+    wavelength_m = 2 * np.pi / wavenumber * scales["screening_length"]
+    fade_time_s = 1 / (2 * abs(damping_rate) * scales["plasma_frequency"])   # time for energy to drop by a factor e
+    print(f"  plasma frequency = {scales['plasma_frequency']:.2e} rad/s, "
+          f"screening length = {scales['screening_length'] * 1e6:.0f} micrometres")
+    print(f"  wavenumber = {wavenumber} means a wavelength of {wavelength_m * 1e3:.2f} mm")
+    print(f"  energy fades by a factor e in {fade_time_s * 1e12:.1f} ps")
 
 
 def main() -> None:
-    p = Params()                                         # defaults: k = 0.5, 5 qubits
-    step1_single_run(p)
-    runs = step2_sweep_k(np.round(np.linspace(0.3, 0.7, 9), 2), p.n_qubits)
+    settings = Params()                                  # defaults: wavenumber 0.5, 5 qubits
+    step1_single_run(settings)
+    runs = step2_sweep_wavenumber(np.round(np.linspace(0.3, 0.7, 9), 2), settings.n_qubits)
     step3_stability(runs)
     step4_resources([3, 4, 5, 6, 7])
-    step5_real_units(landau_root(p.k).imag)
+    step5_real_units(landau_prediction(settings.wavenumber).imag, settings.wavenumber)
     print("\nDone. Figures are in figures/.")
 
 

@@ -1,1 +1,1 @@
-# Package for the quantum Landau damping demo.
+"""Plasma Projector: quantum simulation of Landau damping. Start reading at src/main.py."""

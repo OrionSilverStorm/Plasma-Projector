@@ -1,0 +1,3 @@
+# Store text files with LF line endings in git; each OS converts on checkout. Silences CRLF warnings.
+* text=auto
+*.png binary

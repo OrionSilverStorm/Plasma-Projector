@@ -1,0 +1,30 @@
+# --- Python virtual environments (hundreds of MB of installed libraries; recreate with pip install -r requirements.txt) ---
+.venv/
+venv/
+env/
+
+# --- Python caches and build output (regenerated automatically) ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# --- Test / tool caches ---
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# --- Editor and OS clutter ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Secrets (never commit API keys, e.g. an IBM Quantum token) ---
+.env
+
+# NOTE: figures/*.png are deliberately NOT ignored. The slides use them.

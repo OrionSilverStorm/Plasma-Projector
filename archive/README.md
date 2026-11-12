@@ -1,12 +1,12 @@
-# Archive: classical simulation (parked, not deleted)
+# Archive: classical simulation (parked)
 
-The team decided to drop classical simulation from the main demo for now. The code is kept here so it can come back.
+Dropped from the main demo for now, kept here so it's easy to bring back.
 
-| File | What it was used for |
+| File | Purpose |
 |---|---|
-| `classical_simulation.py` | `exact_evolution` (the exact answer, used to measure Trotter error) and `classical_solve` (timed ODE solver, as a speed benchmark) |
-| `test_classical_simulation.py` | Classical solver matches exact; quantum circuit matches exact (fidelity > 0.99) |
+| `classical_simulation.py` | `exact_evolution`: exact answer via linear algebra, used to measure the circuit's approximation error. `classical_solve`: timed standard ODE solver, for speed comparison. |
+| `test_classical_simulation.py` | Classical solver matches exact; circuit's final state is >99% the same as exact. |
 
-Last measured (5 qubits, kλ_D = 0.5): exact γ = −0.1539, max |quantum − exact| in |E|² = 1.96×10⁻³, and the classical ODE solve took about 20 ms.
+Last measured (5 qubits, wavenumber 0.5): exact damping rate −0.1539; largest circuit-vs-exact gap in field energy 0.00196; classical solve ~20 ms (a laptop easily wins at this size, see doc 4).
 
-**To bring it back:** import from `archive.classical_simulation` in `src/main.py`. Add the exact curve back to `plots.plot_damping` as an extra line. Run `python -m pytest archive` to check it still works.
+**To bring it back:** import from `archive.classical_simulation` in `src/main.py`, add the exact curve to `plots.plot_damping`, and run `python -m pytest archive`.

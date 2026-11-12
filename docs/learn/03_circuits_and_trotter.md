@@ -2,37 +2,38 @@
 
 Code: `src/circuits.py`, `src/simulate.py`.
 
-## The circuit has three parts
 ```
-|0...0> --[ StatePreparation(ψ0) ]--[ step ]--[ step ]-- ... --[ step ]--[ measure ]
-                                     \_______ one per dt, 200 total ______/
+|00000> --[ load starting state ]--[ step ]--[ step ]-- ... --[ step ]--[ measure ]
+                                    \___ one per time_step, 200 total ___/
 ```
 
-### 1. State preparation (`prep_circuit`)
-Qiskit's `StatePreparation` builds rotations that turn |0…0⟩ into any given vector ψ0. For general vectors this costs about 2ⁿ gates. Our ψ0 is a Gaussian-shaped vector, and Gaussians can be prepared with only poly(n) gates (Grover–Rudolph / Kitaev–Webb). This matters for scaling (doc 4).
+## 1. Load the starting state (`prep_circuit`)
+Qiskit's `StatePreparation` finds rotations turning `[1, 0, …, 0]` into our vector. A general vector costs ~2ⁿ gates; bell-curve shapes like ours can be loaded far more cheaply (polynomial in n), which matters at scale (doc 4).
 
-### 2. Time evolution (`trotter_step`)
-We need U = e^{−iH·dt}. Hardware can't apply an arbitrary matrix, so:
-1. **Pauli decomposition:** write H = Σ c_j P_j, where each P_j is a string like `XZIYZ`. `SparsePauliOp.from_operator` does this. For 5 qubits our H needs 510 terms.
-2. **Each term is easy.** e^{−i c P dt} = basis-change gates + a CNOT "ladder" that computes the parity + one RZ rotation + undo the ladder.
-3. **Trotterisation:** the terms don't commute (AB ≠ BA), so e^{−i(A+B)dt} ≠ e^{−iA dt}e^{−iB dt} exactly. The error per step is about dt². **Second-order Suzuki–Trotter** (half-step forwards through the terms, half-step backwards) cancels the leading error, leaving about dt³ per step.
+## 2. One time step (`trotter_step`)
+Hardware can't apply an arbitrary matrix, so to apply `e^{−i · hamiltonian · time_step}`:
 
-**Gotcha we hit and fixed:** if you hand Qiskit the `PauliEvolutionGate` as one block, its simulator quietly uses the **exact** exponential, which hides the Trotter error (we saw 4×10⁻¹⁵). `trotter_step` calls `.decompose()`, so we simulate the real gate sequence. The real Trotter error is about 2×10⁻³ in |E|². (We measured this against an exact classical answer; that code is now parked in `archive/`.)
+1. **Split into building blocks.** `hamiltonian = Σ cⱼ Pⱼ`, each `Pⱼ` a Pauli string like `XZIYZ` (`SparsePauliOp.from_operator`). Any matrix can be split this way, like a signal into sine waves. 5 qubits: 510 terms.
+2. **Each block is easy:** basis-change gates, a CNOT chain computing the qubits' parity, one RZ rotation, then undo.
+3. **Combine them (Trotterisation).** e^{A+B} = e^A·e^B only if `AB = BA`, and our blocks mostly don't commute. So we apply them one after another over a small step and accept a small error. Second-order Suzuki–Trotter (`order=2`: half-step forwards, half-step backwards) cancels the biggest error, leaving ~`time_step³` per step.
 
-### 3. Measurement
-P(measure |0…0⟩) = |E(t)|². On hardware, you run the circuit many times ("shots") and count.
+**Gotcha:** given `PauliEvolutionGate` as one block, Qiskit's simulator silently uses the *exact* exponential, hiding the Trotter error. `.decompose()` forces the real gate sequence (true error ~2×10⁻³ in field energy).
 
-## How `run_quantum` simulates it efficiently
-Every step is the same circuit. So we compute that circuit's 32×32 unitary once (`Operator(step)`) and multiply the state by it 200 times. This gives exactly what the gates do (Trotter error included), just faster than re-simulating about 2,500 CNOTs per step.
+## 3. Measure
+P(`00000`) = field energy. Hardware can't show a probability directly: you run many *shots* and count.
 
-## Getting γ from the curve (`fit_damping_rate`)
-1. Find the peaks of |E(t)|² (the tops of each oscillation).
-2. Skip t < 2 (start-up transient), and stop before the recurrence time.
-3. Fit a straight line to log(peak) against t. The slope is 2γ (energy is amplitude squared), so γ = slope/2.
+## How `run_quantum` is fast
+Every step is the same circuit, so we get its 32×32 matrix once (`Operator(...)`, Trotter error included) and multiply the state by it 200 times. Identical results to gate-by-gate simulation, much faster.
 
-## The stability classifier (`classify_stability`): our novelty
-A reactor controller doesn't need the full plasma state. It needs a **yes/no** answer: *by the time my magnets could react, will this ripple have faded below 10% of its energy?*
-- It measures P(|0…0⟩) at 4 times across one oscillation (so it can't be fooled by a trough where energy is temporarily in the particles) and takes the largest.
-- With 2,000 shots each (8,000 runs total), the estimate is within about 0.01 of the truth.
-- Result: kλ_D ≤ 0.40 means "controller must act"; kλ_D ≥ 0.45 means "fades on its own" (at t = 8/ω_p).
-- **Why it matters:** extracting a whole quantum state costs about 2ⁿ measurements and kills any speedup. One probability costs about 1/ε² shots, or 1/ε with amplitude estimation, **independent of grid size**.
+## Fitting the damping rate (`fit_damping_rate`)
+1. Find the energy curve's peaks (`find_peaks`); only peaks show how much wave is left.
+2. Keep peaks after t = 2 (start-up settling) and before the fake revival.
+3. Fit a line to `log(peak)` vs time. Slope = `2 · damping_rate`.
+
+## Stability classifier (`classify_stability`): our contribution
+A controller needs only yes/no: *by the time the magnets could react, is the ripple below 10% of its starting energy?*
+- Estimate P(`00000`) at 4 times across about one wiggle (`window_indices`) and keep the largest, so a dip (energy briefly in the electrons) can't fake a "faded".
+- 2,000 simulated shots each (`rng.binomial`), 8,000 runs total, accurate to ~0.01.
+- Result at t = 8: wavenumber ≤ 0.40 → "controller must act"; ≥ 0.45 → "fades on its own".
+
+**Why it matters:** reading a whole state takes ~2ⁿ measurements, killing any speed-up. One probability to accuracy ε takes ~1/ε² shots (~1/ε with *amplitude estimation*), **independent of grid size**.

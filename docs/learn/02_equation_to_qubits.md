@@ -1,56 +1,63 @@
-# 2. From the plasma equation to qubits
+# 2. From the plasma equations to qubits
 
 Code: `src/config.py`, `src/hamiltonian.py`. Method: Engel, Smith & Parker (2019).
 
-## Step 0: normalised units (`config.py`)
-We use the units explained in doc 1 ("The plasma's own units"): time in **ticks** (1/ω_p), speed in **thermal speeds** (v_th) and length in **screening lengths** (λ_D = v_th/ω_p).
+Two equations go in; a 32×32 matrix and a 32-number vector (5 qubits) come out. Notation is in the toolkit in [doc 0](00_reading_order.md).
 
-What this does to the equations: the real equations are full of e, mₑ, ε₀, n and T. They always appear in the combinations that make up ω_p, v_th and λ_D, and in our units those all equal 1. So every constant drops out, and the only number left is k (meaning kλ_D, the code's `wavenumber`). That's why the equations below look so bare.
+## Step 0: units (`config.py`)
+In the plasma's own units (doc 1) every physical constant equals 1 and disappears, leaving only `wavenumber`. All numbers below are in ticks, thermal speeds and screening lengths.
 
-**Every number in this doc is in these units.** v_j is in thermal speeds, t and dt are in ticks, and the eigenvalues of H are frequencies in "per tick". `plasma_scales()` gives you ω_p, v_th and λ_D to convert back (see doc 1's conversion table).
-
-## Step 1: the linearised equations
-Write the electron distribution as background plus a small ripple: f = F0(v) + f₁(v)·e^{ikx}. Keep only first-order terms:
+## Step 1: the two rules
+Electron speeds = bell-curve `background` + small `ripple`. Assuming the ripple is small (*linearising*) leaves:
 
 ```
-df1/dt = -i k v f1  -  v F0(v) E      (1) particles stream; the field E pushes them
-dE/dt  =  ∫ v f1 dv                   (2) moving electrons are a current that changes E (Ampère)
+d(ripple)/dt = −i · wavenumber · v · ripple  −  v · background(v) · field     (1)
+d(field)/dt  = Σ over velocities of v · ripple · velocity_spacing              (2)
 ```
-- Term `-ikv f1`: each velocity slice just rotates its phase. This is "phase mixing", the root of Landau damping.
-- Term `-v F0 E`: the field reshapes the distribution (comes from −E·∂F0/∂v with ∂F0/∂v = −vF0).
-- Unit check: k is per screening length and v is screening lengths per tick, so k·v is "per tick". That's a frequency, which is exactly what d/dt needs. In real units the term would read k·v with k in m⁻¹ and v in m/s. The units just make both numbers order 1.
-- F0(v) = e^{−v²/2}/√(2π) is the bell curve with width 1 (one thermal speed). It's the same for every plasma.
 
-## Step 2: discretise velocity
-Put v on a grid of N_v points from −6 to +6 thermal speeds (`max_velocity`; beyond 6 v_th the bell curve is below 10⁻⁸, so there are essentially no electrons). Now f₁ is just a list of N_v complex numbers, and the integral becomes a sum.
+- **`−i · wavenumber · v · ripple`**: electrons coast. This only rotates the ripple's phase, faster at higher v. The velocities drift out of step and cancel out (*phase mixing*), which is what makes the wave fade.
+- **`− v · background · field`**: the field pushes electrons, most where there are many.
+- **Rule (2)**: moving electrons are a current, and current changes the field (Ampère's law).
 
-## Step 3: the trick that makes it quantum-friendly
-Quantum computers can only do **unitary** evolution ψ(t) = e^{−iHt}ψ(0) with **Hermitian** H. Equations (1) and (2) aren't in that form yet, because the coupling terms aren't symmetric (one has F0 in it, the other doesn't). Fix it by rescaling:
+## Step 2: velocity grid
+Sample velocity at `n_velocities` evenly spaced points in [−6, 6] (`max_velocity`). The ripple becomes an array, and the integral a sum times `velocity_spacing`.
 
-```
-g = f1 / sqrt(F0),     u_j = sqrt(dv) * g(v_j),     a_j = v_j * sqrt(F0(v_j) * dv)
-```
-Now both coupling terms carry the same factor a_j, and the system is exactly
+## Step 3: make it quantum-friendly
+A quantum computer can only do `new = e^{−iHt} · old` with H **Hermitian**, which keeps the vector's length at 1. Rules (1)–(2) are lopsided: one link has a `background` factor, the other doesn't. Rescaling fixes it:
 
 ```
-dψ/dt = -i H ψ,    ψ = (E, u_1, ..., u_Nv)
-
-H[j, j] = k v_j        (diagonal: streaming; a frequency in per tick)
-H[0, j] = +i a_j       (row 0: field <- particles)
-H[j, 0] = -i a_j       (column 0: particles <- field), the complex conjugate, so H is Hermitian
+particle_j = sqrt(velocity_spacing) · ripple(v_j) / sqrt(background(v_j))
+coupling_j = v_j · sqrt(background(v_j) · velocity_spacing)
 ```
-**Why it works physically:** |E|² + Σ|u_j|² is the plasma's total wave energy (field plus "free energy" in the particles). Energy conservation means the length of ψ is conserved, and a length-preserving evolution is exactly what a unitary operation is. So the physics was quantum-shaped all along.
 
-H is an **arrowhead matrix**: a diagonal plus one full row and one full column. Nearly all entries are zero. Remember this for doc 4.
+Now the system is exactly `d(state)/dt = −i · hamiltonian · state` with `state = (field, particle_1, …, particle_N)` and
 
-## Step 4: pack it into qubits
-ψ has N_v + 1 entries. Choose N_v = 2ⁿ − 1, so ψ fits exactly in **n qubits** (2ⁿ amplitudes). With 5 qubits we get 31 velocity points. Index 0 (the state |00000⟩) holds the electric field E.
+```
+hamiltonian[j, j] = wavenumber · v_j     diagonal: coasting
+hamiltonian[0, j] = +i · coupling_j      row 0: particles → field
+hamiltonian[j, 0] = −i · coupling_j      column 0: field → particles (the conjugate, so Hermitian)
+```
 
-## Step 5: the initial state must obey Gauss's law
-We start with a density ripple f₁ = F0. Gauss's law (ikE = −∫f₁dv) then fixes E = i/k. If we started with only E (ψ = |0…0⟩), Gauss's law would be violated. The equations then carry a constant non-decaying field forever, and the plot would plateau instead of damping. `initial_state()` builds the correct state, and a test checks Gauss's law.
+These are the three lines in `build_hamiltonian()`: the whole physics model.
 
-## Step 6: reading the answer
-Measuring all qubits gives |0…0⟩ with probability |ψ₀|² = |E|². So **the electric field energy is a single measurement probability**. It oscillates (energy sloshes between field and particles) inside an envelope that decays like e^{2γt}. The factor 2 is there because energy is amplitude squared. Since t is in ticks, the γ we fit comes out in "per tick" (e.g. −0.1533 at k = 0.5). Multiply by ω_p to get per second.
+**Why it works:** the vector's length squared, `|field|² + Σ|particle_j|²`, is the wave's total energy. Energy is conserved, so length is conserved, which is exactly what a quantum computer's updates do.
+
+The matrix is an **arrowhead** (diagonal + row 0 + column 0, the rest zero). That structure matters in doc 4.
+
+## Step 4: fit into qubits
+n qubits hold 2ⁿ numbers, so `n_velocities = 2ⁿ − 1` leaves one slot for the field. 5 qubits: 31 velocities + field = 32. The field is index 0, the amplitude of `00000`. An odd point count also puts a grid point at v = 0.
+
+## Step 5: obey Gauss's law (`initial_state`)
+We start with a ripple shaped like the background. Gauss's law says that clump of charge fixes the field: `i · wavenumber · field = −Σ ripple · velocity_spacing`, so `field ≈ i / wavenumber`. Starting with a field and no ripple would break this and leave a constant fake field that never fades. `test_initial_state_obeys_gauss_law` checks it.
+
+## Step 6: read the answer
+P(measure `00000`) = `|field|²` = field energy (`field_energy()`). It goes up and down as energy sloshes between field and electrons, with peaks shrinking like `e^{2 · damping_rate · t}` (2 because energy is size squared).
 
 ## Step 7: the grid's fake echo
-A discrete velocity grid has a finite smallest spacing Δv. After T_R = 2π/(kΔv), all the phase-mixed slices line up again and the wave falsely revives. With 5 qubits, Δv = 12/30 = 0.4 thermal speeds, so at k = 0.5 we get T_R = 2π/(0.5 × 0.4) ≈ 31 ticks. We stop at t = 20 ticks (`end_time`), which is about 36 ps in a tokamak core. More qubits give a finer grid and a later recurrence.
+On an evenly spaced grid the drifting velocities all line up again at
+
+```
+fake_revival_time = 2π / (wavenumber · velocity_spacing)
+```
+
+and the wave falsely reappears. 5 qubits: spacing 12/30 = 0.4, so at wavenumber 0.5 that's ≈ 31 ticks. We stop at 20 (`end_time`). More qubits → finer grid → later revival.

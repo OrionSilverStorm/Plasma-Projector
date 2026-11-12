@@ -1,47 +1,42 @@
-# Plasma Projector: Quantum Simulation of Landau Damping
+# Plasma Projector: simulating a fading plasma wave on a quantum computer
 
-**Research question:** Can quantum computing offer a computational advantage over classical computing when simulating Landau damping in plasma, and what limits its use for fusion energy?
+**Question:** can a quantum computer simulate *Landau damping* (a plasma wave fading without collisions) more efficiently than a normal computer, and what stops it helping fusion reactors today?
 
-**New to the project? Start with [docs/learn/how_to_learn.md](docs/learn/how_to_learn.md).**
+**New here?** Read [docs/learn/00_reading_order.md](docs/learn/00_reading_order.md). No physics background needed.
 
-## Results (5 qubits, kλ_D = 0.5)
-| | Damping rate γ |
+## The idea
+Fusion plasma is full of ripples. Some fade, some grow and damage the reactor. We turn the equations for one ripple into a matrix, store its state in 5 qubits, and step it forward with a quantum circuit. The probability of measuring `00000` is the wave's energy, so watching it shows the wave fade. We check the fade rate against the textbook.
+
+## Results (5 qubits, wavenumber 0.5)
+| Source | Damping rate (per plasma tick; negative = fading) |
 |---|---|
-| Landau theory (dispersion relation) | −0.1534 |
-| **Quantum circuit (2nd-order Trotter)** | **−0.1538** |
+| Textbook formula | −0.1534 |
+| **Quantum circuit** | **−0.1538** |
 
-The circuit tracks theory within 5% across kλ_D = 0.3–0.7 (`figures/2_damping_vs_wavenumber.png`).
+Within 5% across wavenumbers 0.3–0.7 (`figures/2_damping_vs_wavenumber.png`).
 
-**Novelty:** a stability classifier answers a reactor controller's yes/no question ("does this ripple fade before the magnets could react?") from a few measured probabilities. It never reads out the full quantum state, and that full readout is the bottleneck that limits most quantum PDE solvers.
+**What's new:** a *stability classifier* that answers a reactor controller's yes/no question ("will this ripple fade before the magnets could react?") from a few measured probabilities, avoiding the slow full readout of the quantum state.
 
-## Approach (Engel, Smith & Parker, 2019)
-1. Linearise the 1D1V Vlasov–Ampère equations for one Fourier mode `k`.
-2. Rescale by `sqrt(F0)` and discretise velocity, so the system becomes `dψ/dt = −iHψ` with Hermitian `H`.
-3. Encode `ψ = (E, u_1 … u_Nv)` in `n` qubits (`N_v = 2^n − 1`).
-4. Evolve with a Suzuki–Trotter circuit. `|E(t)|²` is the probability of measuring `|0…0⟩`.
-
-## Run (VS Code)
+## Run (VS Code, Windows)
 ```
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
-python -m src.main        # prints results and writes figures/*.png (about 20 s)
+python -m src.main        # prints results, writes figures/*.png (~20 s)
 python -m pytest          # 8 tests
 ```
-Or open `src/main.py` and click **Run Python File**. Select the `.venv` interpreter first.
 
 ## Layout
 | Path | Purpose |
 |---|---|
-| `src/config.py` | All parameters; conversion to SI units |
-| `src/hamiltonian.py` | Build H and the Gauss-consistent initial state |
-| `src/theory.py` | Textbook Landau damping rate (the answer we check against) |
-| `src/circuits.py` | State preparation and Trotter-step circuits |
-| `src/simulate.py` | Run circuits, fit γ, stability classifier |
-| `src/resources.py` | Qubit, CNOT and depth counts; classical vs quantum memory |
-| `src/plots.py` | All slide figures |
-| `src/main.py` | The demo: runs every step in order |
-| `tests/` | Physics and correctness tests |
-| `archive/` | Parked classical simulation code (not used right now) |
-| `docs/learn/` | Learning guide: physics, maths, code, Q&A |
-| `figures/` | Exported plots for slides |
+| `src/config.py` | All settings; conversion to real units |
+| `src/hamiltonian.py` | The matrix that drives the simulation, and the starting state |
+| `src/theory.py` | Textbook damping rate we check against |
+| `src/circuits.py` | Quantum circuits (load state, one time step) |
+| `src/simulate.py` | Run circuits, fit the damping rate, stability classifier |
+| `src/resources.py` | Gate counts; classical vs quantum memory |
+| `src/plots.py` | Slide figures |
+| `src/main.py` | The demo, runs everything in order |
+| `tests/` | Correctness and physics checks |
+| `archive/` | Parked classical simulation |
+| `docs/learn/` | Learning guide |

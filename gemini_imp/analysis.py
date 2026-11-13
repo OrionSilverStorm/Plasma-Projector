@@ -22,7 +22,11 @@ def measure_damping_rate(times: np.ndarray, energy: np.ndarray, config: dict) ->
     fit_end = min(config["end_time"], 0.8 * fake_revival_time)
 
     peak_indices, _ = find_peaks(energy)
-    valid_peaks = peak_indices[(times[peak_indices] >= fit_start) & (times[peak_indices] <= fit_end)]
+    valid_peaks = peak_indices[
+        (times[peak_indices] >= fit_start)
+        & (times[peak_indices] <= fit_end)
+        & (energy[peak_indices] >= 1e-6)
+    ]
 
     slope, intercept = np.polyfit(times[valid_peaks], np.log(energy[valid_peaks]), deg=1)
 

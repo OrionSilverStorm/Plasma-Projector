@@ -2,10 +2,15 @@
 Plasma Wave Simulation: Quantum (Qiskit) vs. Classical Computer (Main Entry Point).
 
 Author: Asad
-How to run: python asad_imp/plasma_simulation.py
+How to run: python gemini_imp/plasma_simulation.py
 
-For the project overview, physics explanations, and a guided file-by-file
-walkthrough of Sections 1-5, see README.md.
+Walks through four clear stages:
+  [1/4] Separate Multi-Scenario Graphs (Quantum Circuit vs. Conventional Algorithm across 3 scenarios)
+  [2/4] Baseline Direct Overlay (5-Qubit Fast Arrowhead Circuit vs. Sparse Classical RK45)
+  [3/4] Parameter Sweeps (How Wavenumber k and Temperature T affect plasma wave fading)
+  [4/4] Efficiency & Viability Benchmark (Problem 2 FLOPs vs. QPU Time + Problem 3 Fast Arrowhead Fix)
+
+For the plain-English project overview, physics guide, and step-by-step code walkthrough, see README.md.
 """
 
 import sys
@@ -22,44 +27,68 @@ from plotting import (  # noqa: E402
     plot_figure_1_quantum_vs_classical,
     plot_figure_2_factors_comparison,
     plot_figure_3_quantum_vs_classical_viability,
+    plot_separate_scenario_graphs,
 )
 from simulation import run_classical_simulation, run_quantum_simulation  # noqa: E402
 
 
 def main() -> None:
-    """Run all three benchmark steps, print summary metrics, and save figures. See README.md."""
-    print("=" * 80)
-    print("QUANTUM VS. CLASSICAL PLASMA SIMULATION")
-    print("=" * 80)
+    """Run all benchmark stages, print beginner-friendly summary metrics, and save all figures."""
+    print("=" * 88)
+    print("TOKAMAK PLASMA WAVE SIMULATION: QUANTUM CIRCUIT (QISKIT) VS. CONVENTIONAL COMPUTER")
+    print("=" * 88)
 
-    # 1. Baseline single-wave comparison (5 qubits, k = 0.5, T = 1.0)
-    print("\n[1/3] Running single wave comparison (5 Qubits vs. Classical RK45 Solver)...")
-    q_res = run_quantum_simulation(DEFAULT_CONFIG)
+    # 1. Separate Multi-Scenario Graphs (Quantum vs. Classical side by side across 3 scenarios)
+    print("\n[1/4] Generating separate Quantum & Classical graphs across 3 Tokamak Scenarios...")
+    fig1a_path, fig1b_path, scenario_results = plot_separate_scenario_graphs()
+    for item in scenario_results:
+        scen = item["scenario"]
+        print(
+            f"  -> {scen['short_label']:27s} | "
+            f"Quantum Fade Rate: {item['q_rate']:.4f} | "
+            f"Classical Fade Rate: {item['c_rate']:.4f}"
+        )
+    print(f"  -> Saved Quantum Scenarios Graph   : {fig1a_path}")
+    print(f"  -> Saved Classical Scenarios Graph : {fig1b_path}")
+
+    # 2. Baseline single-wave overlay (5 qubits, k = 0.5, T = 1.0)
+    print("\n[2/4] Running baseline wave overlay (5-Qubit Fast Arrowhead vs. Classical Sparse RK45)...")
+    q_res = run_quantum_simulation(DEFAULT_CONFIG, method="arrowhead")
     c_res = run_classical_simulation(DEFAULT_CONFIG)
 
     q_rate, q_env = measure_damping_rate(q_res["times"], q_res["energy"], DEFAULT_CONFIG)
     c_rate, _ = measure_damping_rate(c_res["times"], c_res["energy"], DEFAULT_CONFIG)
 
-    print(f"  -> Classical Solver Damping Rate : {c_rate:.4f}  (took {c_res['runtime_s']:.3f} s)")
-    print(f"  -> Quantum Circuit Damping Rate  : {q_rate:.4f}  (took {q_res['runtime_s']:.3f} s)")
+    print(
+        f"  -> Classical Sparse Solver : Damping Rate = {c_rate:.4f} | "
+        f"Work = {c_res['total_flops']:,} FLOPs ({c_res['rhs_evaluations']} evaluations)"
+    )
+    print(
+        f"  -> Quantum Fast Arrowhead  : Damping Rate = {q_rate:.4f} | "
+        f"Work = {q_res['cnots_per_step']} CNOTs/step ({q_res['total_circuit_cnots']:,} total CNOTs, "
+        f"est. QPU 1-shot time = {q_res['estimated_qpu_single_shot_s']*1e3:.2f} ms)"
+    )
     fig1_path = plot_figure_1_quantum_vs_classical(q_res, c_res, q_rate, q_env, DEFAULT_CONFIG)
-    print(f"  -> Saved Graph 1: {fig1_path}")
+    print(f"  -> Saved Baseline Overlay Graph    : {fig1_path}")
 
-    # 2. Sweep physical factors (Wavenumber k and Temperature T)
-    print("\n[2/3] Sweeping plasma factors (Wavenumber k & Electron Temperature T)...")
+    # 3. Sweep physical factors (Wavenumber k and Temperature T)
+    print("\n[3/4] Sweeping plasma factors (Wavenumber k & Electron Temperature T)...")
     fig2_path = plot_figure_2_factors_comparison()
-    print(f"  -> Saved Graph 2: {fig2_path}")
+    print(f"  -> Saved Factors Sweep Graph       : {fig2_path}")
 
-    # 3. Evaluate Quantum vs. Classical scaling & circuit costs
-    print("\n[3/3] Measuring Quantum Circuit gate scaling and 3D memory compression...")
+    # 4. Evaluate Quantum vs. Classical scaling & circuit efficiency (Problem 2 & Problem 3 fixes)
+    print("\n[4/4] Benchmarking Efficiency: Classical Sparse FLOPs vs. Naive Pauli vs. Fast Arrowhead...")
     fig3_path, gate_stats = plot_figure_3_quantum_vs_classical_viability()
     for row in gate_stats:
         print(
-            f"  -> {row['n_qubits']} qubits ({row['velocity_buckets']:2d} velocity buckets): "
-            f"{row['cnot_gates_per_step']:4d} CNOT gates/step | depth {row['circuit_depth']:4d}"
+            f"  -> {row['n_qubits']} qubits ({row['velocity_buckets']:2d} velocities): "
+            f"Naive Pauli = {row['naive_cnots_per_step']:4d} CNOTs/step | "
+            f"Fast Arrowhead = {row['fast_cnots_per_step']:3d} CNOTs/step "
+            f"({row['cnot_reduction_factor']:4.1f}x fewer!) | "
+            f"Classical = {row['classical_flops']:,} FLOPs"
         )
-    print(f"  -> Saved Graph 3: {fig3_path}")
-    print("\nAll simulations finished! Check `asad_imp/figures/` for your graphs.")
+    print(f"  -> Saved Scaling & Efficiency Graph: {fig3_path}")
+    print("\nAll simulations finished! Check `gemini_imp/figures/` for your 5 graphs.")
 
 
 if __name__ == "__main__":

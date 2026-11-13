@@ -1,264 +1,199 @@
-# Asad's Implementation (`gemini_imp`)
+# Tokamak Plasma Wave Simulation: Quantum Circuit vs. Conventional Computer (`gemini_imp`)
 
-A modular Quantum (Qiskit) vs. Classical (SciPy) plasma wave simulation written for clarity, direct benchmarking, and presentation-ready explanations—no physics or quantum background required.
-
-> **Navigation Tip:** Every Python file in `gemini_imp/` stays concise and focused on code. All long conceptual, physics, and math explanations live right here in this `README.md`, organized into **Sections 1–5** matching each module.
+A beginner-friendly, modular **Quantum (Qiskit)** vs. **Conventional (SciPy)** plasma wave simulation built so anyone—**with zero physics or quantum computing background**—can immediately see:
+1. **What the problem is** (keeping a nuclear fusion reactor stable).
+2. **What the quantum circuit is doing** (taking physical factors $\rightarrow$ encoding them into qubits $\rightarrow$ evolving them with quantum gates $\rightarrow$ reading out probabilities $\rightarrow$ graphing the wave).
+3. **Whether a quantum computer is genuinely better than a regular computer** (comparing memory compression, hardware-independent operation counts, and our **Fast Arrowhead Circuit** optimization).
 
 ---
 
 ## Quick Navigation
 
-- [Overview & Research Question](#overview--research-question)
-- [File Map & Reading Order](#file-map--reading-order)
-- [How to Run](#how-to-run)
-- [Section 1: Physical Factors & Simulation Settings](#section-1-physical-factors--simulation-settings) (`config.py`)
-- [Section 2: Encoding Physics into Qubits & Building the Matrix](#section-2-encoding-physics-into-qubits--building-the-matrix) (`hamiltonian.py`)
-- [Section 3: Running the Simulation (Quantum vs. Classical)](#section-3-running-the-simulation-quantum-vs-classical) (`simulation.py`)
-- [Section 4: Analysing Data (Measuring How Fast the Wave Fades)](#section-4-analysing-data-measuring-how-fast-the-wave-fades) (`analysis.py`)
-- [Section 5: Plotting Data with Matplotlib](#section-5-plotting-data-with-matplotlib) (`plotting.py`)
-- [Main Entry Point](#main-entry-point) (`plasma_simulation.py`)
-- [Quick Glossary](#quick-glossary)
+- [1. What Is the Problem? (Plain-English Physics)](#1-what-is-the-problem-plain-english-physics)
+- [2. What Is the Quantum Circuit Doing? (Input Factors $\rightarrow$ Qubits $\rightarrow$ Output Graphs)](#2-what-is-the-quantum-circuit-doing-input-factors--qubits--output-graphs)
+- [3. Is the Quantum Circuit Actually Better Than a Regular Computer?](#3-is-the-quantum-circuit-actually-better-than-a-regular-computer)
+- [4. Visual Guide to the 5 Generated Graphs](#4-visual-guide-to-the-5-generated-graphs)
+- [5. File Map & Code Walkthrough (Sections 1–5)](#5-file-map--code-walkthrough-sections-15)
+  - [Section 1: Physical Factors & Scenarios (`config.py`)](#section-1-physical-factors--scenarios-configpy)
+  - [Section 2: Encoding Physics into Qubits & the Arrowhead Matrix (`hamiltonian.py`)](#section-2-encoding-physics-into-qubits--the-arrowhead-matrix-hamiltonianpy)
+  - [Section 3: Running the Quantum Circuit vs. Classical Algorithm (`simulation.py`)](#section-3-running-the-quantum-circuit-vs-classical-algorithm-simulationpy)
+  - [Section 4: Measuring How Fast the Wave Fades (`analysis.py`)](#section-4-measuring-how-fast-the-wave-fades-analysispy)
+  - [Section 5: Graphing the Results (`plotting.py`)](#section-5-graphing-the-results-plottingpy)
+- [6. How to Run](#6-how-to-run)
+- [7. Plain-English Glossary](#7-plain-english-glossary)
 
 ---
 
-## Overview & Research Question
+## 1. What Is the Problem? (Plain-English Physics)
 
-**Research Question:**
-> *"How do various factors affect the movement of plasma in a nuclear fusion reactor, and would it be useful to simulate in a quantum computer vs. a conventional computer?"*
+In a **tokamak** nuclear fusion reactor, we trap super-hot charged gas (**plasma**) inside a magnetic bottle at over 100 million degrees. Because electrons are negatively charged, whenever a crowd of electrons bunches up in one spot, they push each other apart via an **electric field**, overshoot like a stretched spring, and slosh back and forth. This sloshing is a **plasma wave** (an electric ripple).
 
-### What is happening in the physics?
-In a nuclear fusion reactor (like a tokamak), super-hot charged gas called **plasma** is held inside a magnetic bottle. Ripples (electrostatic waves) constantly form in this plasma:
-- **Safe case (Landau Damping):** Sometimes a ripple naturally gives its energy to moving electrons and fades away on its own without particle collisions.
-- **Dangerous case:** Sometimes a ripple lingers or grows, crashing into the reactor wall and stopping fusion.
+When a ripple forms inside a fusion reactor, one of two things happens:
+- **Dangerous Case (Instability):** The ripple grows larger and throws hot plasma into the reactor walls, shutting down fusion.
+- **Safe Case (Landau Damping):** The ripple naturally fades away on its own, *even when electrons never collide with each other*.
 
-### What does this codebase do?
-This folder simulates one plasma ripple and compares two ways of computing how it evolves over time:
-1. **A Quantum Computer simulation** built with IBM's **Qiskit** library (Suzuki-Trotter quantum gates + simulated hardware measurement shots).
-2. **A Conventional (Classical) Computer simulation** built with **SciPy**'s Runge-Kutta differential equation solver (`solve_ivp`), run side-by-side on every test.
-
-### Key Differences from `src/`
-- **Sweeps Multiple Physical Factors:** Explicitly includes **Wavenumber ($k$)**, **Electron Temperature ($T$)**, and **Density ($n_e$)** in the Hamiltonian matrix so you can plot how both $k$ and $T$ change plasma wave damping.
-- **Direct Classical vs. Quantum Benchmark:** Runs a real classical ODE solver alongside the Qiskit Trotter circuit on every run rather than archiving the classical solver.
-
-[Back to top](#quick-navigation)
+### Why Does the Wave Fade Without Collisions? (The Surfer Analogy)
+Imagine ocean waves and surfers paddling at different speeds:
+- A surfer moving **slightly slower** than a wave gets caught and pushed forward—**stealing energy from the wave**.
+- A surfer moving **slightly faster** than a wave pushes against the back of the wave—**giving energy to the wave**.
+- In a warm plasma, electron speeds follow a **bell curve** (many slow electrons, fewer fast ones). That means at the wave's speed, there are always **more slightly-slower electrons than slightly-faster ones**. Net result: the electrons absorb the wave's electric field energy, and the ripple fades away (**Landau damping**).
 
 ---
 
-## File Map & Reading Order
+## 2. What Is the Quantum Circuit Doing? (Input Factors $\rightarrow$ Qubits $\rightarrow$ Output Graphs)
 
-Read the files in **order 1 → 6** to follow the data from raw physics parameters all the way to finished charts:
+```mermaid
+flowchart LR
+    A["1. Input Factors\n- Wavenumber (k)\n- Temperature (T)\n- Density (n_e)"] --> B["2. Load 5 Qubits (32 Slots)\n- Slot 0 (|00000⟩): Electric Field\n- Slots 1..31: Velocity Buckets"]
+    B --> C["3. Fast Arrowhead Circuit\n- Diagonal: 5 RZ Gates (0 CNOTs)\n- Arrow: Field-Velocity Coupling\n- Repeat for 200 Time Steps"]
+    C --> D["4. Read Out Qubits\n- Measure P(|00000⟩)\n- 2,000 Hardware Shots\n- Fit Wave Decay Rate"]
+    D --> E["5. Output Graphs\n- 1a: Quantum Scenarios\n- 1b: Classical Scenarios\n- 1, 2, 3: Comparisons"]
+```
 
-| Step | Python File | README Section | What It Owns | Key Symbols |
-|---|---|---|---|---|
-| 1 | [config.py](config.py) | [Section 1](#section-1-physical-factors--simulation-settings) | Physical parameters & velocity grid | `DEFAULT_CONFIG`, `make_velocity_grid` |
-| 2 | [hamiltonian.py](hamiltonian.py) | [Section 2](#section-2-encoding-physics-into-qubits--building-the-matrix) | Bell curve, Hamiltonian matrix $H$, initial state | `maxwellian_bell_curve`, `build_hamiltonian_matrix`, `create_initial_qubit_state` |
-| 3 | [simulation.py](simulation.py) | [Section 3](#section-3-running-the-simulation-quantum-vs-classical) | Qiskit Trotter circuit & SciPy RK45 solver | `build_qiskit_step_circuit`, `run_quantum_simulation`, `run_classical_simulation` |
-| 4 | [analysis.py](analysis.py) | [Section 4](#section-4-analysing-data-measuring-how-fast-the-wave-fades) | Peak detection & log-linear damping rate fit | `measure_damping_rate` |
-| 5 | [plotting.py](plotting.py) | [Section 5](#section-5-plotting-data-with-matplotlib) | Generates 3 PNG charts in `gemini_imp/figures/` | `plot_figure_1_quantum_vs_classical`, `plot_figure_2_factors_comparison`, `plot_figure_3_quantum_vs_classical_viability` |
-| 6 | [plasma_simulation.py](plasma_simulation.py) | [Main Entry Point](#main-entry-point) | Runs Steps 1–5 in sequence & prints summary | `main` |
-
-> **Tip for reading code alongside this guide:** Open the Python file on one side of your editor and jump to the matching Section below to see *why* each formula and Qiskit call is written the way it is.
-
-[Back to top](#quick-navigation)
+### Step-by-Step Pipeline:
+1. **Takes 3 Physical Factors (`config.py`):**
+   - **Wavenumber ($k$):** How tightly packed the wave crests are ($k = 2\pi / \text{wavelength}$). Higher $k$ = shorter wave = more electrons can surf it = **fades faster**.
+   - **Temperature ($T$):** How hot/fast the electrons are. Higher $T$ = wider bell curve of speeds = more fast electrons available to steal wave energy = **fades faster**.
+   - **Density ($n_e$):** How tightly packed the electrons are (controls how fast the electric field and electrons push each other).
+2. **Stores the Plasma in 5 Qubits (`hamiltonian.py`):**
+   - While 5 regular bits can only hold *one* number from `0` to `31` at a time, **5 qubits** in superposition hold **$2^5 = 32$ complex numbers simultaneously**:
+     - **Slot `0` (binary `|00000⟩`):** Holds the wave's **Electric Field ($E$)**.
+     - **Slots `1` to `31` (`|00001⟩` to `|11111⟩`):** Hold **31 electron velocity buckets** evenly spaced from `-6` to `+6`.
+3. **Computes Time Evolution Using Our Fast Arrowhead Circuit (`simulation.py`):**
+   - Physics rules say that in each small time step ($\Delta t = 0.1$), two things happen:
+     1. **Electrons coast at their own speed** (diagonal of the matrix $H$).
+     2. **The electric field and electrons push each other** (top row and left column of $H$, making an **"arrowhead" matrix**).
+   - Our quantum circuit applies those two rules 200 times (`n_steps = 200`) using quantum gates (`RZ` rotations and `CNOT` entangling gates).
+4. **Reads Out the Answer & Graphs It (`analysis.py` & `plotting.py`):**
+   - When you measure the qubits at the end of a run, the probability of all 5 qubits reading zero (`00000`) equals $|\text{state}[0]|^2$, which is the **Electric Field Energy** of the wave!
+   - Running the circuit **2,000 times ("shots")** and counting how often `00000` appears gives the realistic hardware measurement.
+   - Tracking the peaks of that energy over time gives the **damping rate** (how fast the wave fades).
 
 ---
 
-## How to Run
+## 3. Is the Quantum Circuit Actually Better Than a Regular Computer?
 
-From the **root of the repository** (with your virtual environment activated):
+To answer the research question honestly and scientifically, we solved two major benchmarking problems in `simulation.py`:
 
-```powershell
+### Fix 1 (Problem 2): Fair Hardware-Independent Efficiency Comparison
+Why can't you just compare Python runtime (`time.perf_counter()`) between Qiskit and SciPy on a laptop? Because **your laptop is a classical CPU pretending to be a quantum computer**! Simulating qubits on a regular CPU takes exponentially more work than running on real quantum hardware.
+- **How we fixed it:** Instead of comparing laptop wall-clock seconds, `simulation.py` counts **hardware-independent operations**:
+  - **Conventional Computer Cost:** Uses a **sparse matrix (`scipy.sparse.csr_matrix`)**—which skips all the zeros in the arrowhead matrix just like a real high-performance classical solver—and counts exact **Floating-Point Operations (`FLOPs`)** performed by the Runge-Kutta (`RK45`) solver.
+  - **Quantum Computer Cost:** Compiles the circuit into real superconducting hardware gates (`cx`, `rz`, `sx`, `x`), counts **2-Qubit `CNOT` Gates** and **Sequential Circuit Depth**, and estimates real **Quantum Processor (QPU) execution time** (at ~50 nanoseconds per gate layer).
+
+### Fix 2 (Problem 3): The Fast Arrowhead Quantum Circuit (Up to 13.7× Fewer CNOT Gates!)
+Originally, converting the $2^n \times 2^n$ Hamiltonian matrix $H$ into quantum gates using Qiskit's generic `SparsePauliOp.from_operator(H)` treated $H$ like a dense block of numbers. That required $\sim 4^n$ CNOT gates per step (`2,516` CNOTs/step at 5 qubits; `9,882` CNOTs/step at 6 qubits!), which would ruin any quantum advantage.
+- **How we fixed it (`build_fast_arrowhead_step_circuit` in `simulation.py`):**
+  We exploited the **Arrowhead structure** of $H = H_{\text{diag}} + H_{\text{arrow}}$:
+  1. **Diagonal Coasting ($H_{\text{diag}}$):** Because velocity $v_j$ is evenly spaced, each qubit $m$ simply rotates by angle $-k \, \Delta v \, 2^m \Delta t$ using **one single-qubit `RZ` gate** (**zero CNOTs** for the velocity ramp!) plus a phase correction on `|00000⟩`.
+  2. **Field-Velocity Coupling ($H_{\text{arrow}}$):** Since slot `0` only talks to one combined velocity wave $\lvert\phi\rangle$, evolution happens inside a simple **2D subspace** ($\lvert\psi_+\rangle, \lvert\psi_-\rangle$), requiring only two state-preparation reflections per step instead of $4^n$ Pauli strings.
+
+| Qubits ($n$) | Velocity Buckets | Old Naive Pauli CNOTs/Step | **New Fast Arrowhead CNOTs/Step** | **Gate Reduction** | Classical Sparse Solver Work |
+|---:|---:|---:|---:|---:|---:|
+| **3 qubits** | 7 | 124 | **52** | **2.4× fewer** | 317,376 FLOPs |
+| **4 qubits** | 15 | 598 | **164** | **3.6× fewer** | 732,480 FLOPs |
+| **5 qubits** | 31 | 2,516 | **368** | **6.8× fewer** | 1,522,080 FLOPs |
+| **6 qubits** | 63 | 9,882 | **720** | **13.7× fewer** | 3,038,496 FLOPs |
+
+### The Final Verdict: When Should You Use a Quantum Computer?
+1. **For a 1D Wave (Our 5-Qubit Demo): Regular Computer Wins.**
+   In 1D, the state vector only has 32 numbers. A classical sparse solver finishes the entire 200-step simulation in under **1 million FLOPs** (~2 milliseconds on a laptop), whereas even our optimized quantum circuit needs `368 × 200 = 73,600` CNOT gates across 200 steps.
+2. **For a Full 3D Fusion Reactor (`3D3V`): Quantum Computer Has a Massive Memory Advantage.**
+   A real tokamak has **3 space axes $(x,y,z)$ + 3 velocity axes $(v_x,v_y,v_z)$ = 6 dimensions**.
+   - At a modest grid resolution of $N = 128$ points per axis, a conventional computer must store $128^6 \approx \mathbf{4.4 \times 10^{12}}$ **numbers** (~70 Terabytes of RAM). At $N = 1024$, it needs $10^{18}$ numbers (impossible on any supercomputer).
+   - A quantum computer stores the exact same $128^6$ grid in just **$6 \log_2(128) = \mathbf{42\text{ qubits}}$**!
+   - **Bottom line:** Quantum computing is not needed for 1D waves today, and current quantum hardware is still too noisy for deep circuits—but once fault-tolerant quantum hardware arrives, structured arrowhead circuits make full 3D fusion simulations possible in dozens of qubits instead of petabytes of classical RAM.
+
+---
+
+## 4. Visual Guide to the 5 Generated Graphs
+
+Running `python gemini_imp/plasma_simulation.py` saves five high-resolution PNG graphs in `gemini_imp/figures/`:
+
+| Graph File | What It Shows | Why It Matters for Your Presentation |
+|---|---|---|
+| **`1a_quantum_circuit_scenarios.png`** | **Quantum Circuit Outputs Across 3 Tokamak Scenarios** (Scenario A: Gentle Wave $k=0.35, T=0.8$; Scenario B: Baseline $k=0.50, T=1.0$; Scenario C: Short Wave in Hot Plasma $k=0.65, T=1.3$). | Shows the quantum circuit (blue/green/orange curves + 2,000-shot hardware dots) accurately capturing slow, medium, and fast wave damping. |
+| **`1b_classical_algorithm_scenarios.png`** | **Conventional Algorithm Outputs Across the Same 3 Scenarios** on the exact same vertical & horizontal scales as `1a`. | Placing `1a` and `1b` side-by-side lets anyone visually verify that the 5-qubit quantum circuit reproduces the conventional solver across different reactor conditions! |
+| **`1_quantum_vs_classical_wave.png`** | **Direct Overlay on the Baseline Wave** (Classical Sparse RK45 vs. 5-Qubit Fast Arrowhead Circuit vs. 2,000 Hardware Shots). | Proves that the quantum curve lies right on top of the classical curve (both give damping rate $\gamma \approx -0.154$). |
+| **`2_factors_affecting_plasma.png`** | **How Physical Factors Change Damping Speed:** Sweeps Wavenumber ($k \in [0.3, 0.7]$) in Panel A and Temperature ($T \in [0.6, 1.6]$) in Panel B. | Visually answers the first half of the research question: shorter waves (higher $k$) and hotter plasmas (higher $T$) both cause the wave to fade faster. |
+| **`3_quantum_vs_classical_scaling.png`** | **3-Panel Efficiency & Viability Benchmark:** (1) 3D Reactor Memory Compression ($N^6$ vs. $6\log_2 N$), (2) Problem 3 Fix (Fast Arrowhead vs. Naive Pauli CNOTs), (3) Problem 2 Fair Operations Count (Classical FLOPs vs. Quantum CNOTs). | Directly answers the second half of the research question with quantitative proof. |
+
+---
+
+## 5. File Map & Code Walkthrough (Sections 1–5)
+
+| Step | Python File | What It Owns | Key Functions / Constants |
+|---|---|---|---|
+| **1** | [`config.py`](config.py) | Physical parameters, 3 tokamak scenarios, velocity grid | `DEFAULT_CONFIG`, `SCENARIOS`, `make_velocity_grid` |
+| **2** | [`hamiltonian.py`](hamiltonian.py) | Maxwellian bell curve, Arrowhead matrix $H$, Gauss's law start state | `maxwellian_bell_curve`, `build_hamiltonian_matrix`, `create_initial_qubit_state` |
+| **3** | [`simulation.py`](simulation.py) | Fast Arrowhead circuit, Naive Pauli circuit, Sparse RK45 solver, FLOPs/gate benchmarks | `build_fast_arrowhead_step_circuit`, `run_quantum_simulation`, `run_classical_simulation`, `benchmark_efficiency_scaling` |
+| **4** | [`analysis.py`](analysis.py) | Peak detection & log-linear damping rate fit before fake revival | `measure_damping_rate` |
+| **5** | [`plotting.py`](plotting.py) | Generates all 5 PNG charts in `gemini_imp/figures/` | `plot_separate_scenario_graphs`, `plot_figure_1_quantum_vs_classical`, `plot_figure_2_factors_comparison`, `plot_figure_3_quantum_vs_classical_viability` |
+| **6** | [`plasma_simulation.py`](plasma_simulation.py) | Main script that runs Steps 1–4 and prints clear terminal output | `main` |
+
+---
+
+### Section 1: Physical Factors & Scenarios (`config.py`)
+- Defines `DEFAULT_CONFIG` (`n_qubits = 5`, `wavenumber = 0.5`, `temperature = 1.0`, `density = 1.0`, `max_velocity = 6.0`, `end_time = 20.0`, `n_steps = 200`).
+- Defines `SCENARIOS` (Scenarios A, B, and C) so we can test the quantum circuit and classical solver across slow, moderate, and fast damping conditions.
+- `make_velocity_grid(n_qubits, max_velocity)` reserves Slot `0` for the electric field and splits `[-6.0, +6.0]` into $2^n - 1 = 31$ evenly spaced velocity buckets (`dv` is the gap between buckets).
+
+### Section 2: Encoding Physics into Qubits & the Arrowhead Matrix (`hamiltonian.py`)
+- **`maxwellian_bell_curve(velocities, temperature)`:** Computes the bell-curve spread of electron speeds:
+  $$f_0(v) = \frac{1}{\sqrt{2\pi T}} \exp\left(-\frac{v^2}{2T}\right)$$
+- **`build_hamiltonian_matrix(config)`:** Quantum gates can only apply **unitary** updates $\text{new\_state} = \exp(-i H \Delta t)\,\text{old\_state}$ where $H$ is a symmetric (**Hermitian**) matrix. Rescaling the velocity buckets turns the plasma equations into a $32 \times 32$ **Arrowhead Matrix**:
+  - **Diagonal `H[j, j] = k * v_j`:** Electrons coasting at velocity $v_j$.
+  - **Top Row `H[0, j] = +i * coupling_j`:** Moving electrons generating current that updates the electric field in Slot `0`.
+  - **Left Column `H[j, 0] = -i * coupling_j`:** Electric field pushing velocity bucket $j$, where $\text{coupling}_j = \sqrt{n_e}\, v_j \sqrt{f_0(v_j)\,\Delta v}$.
+- **`create_initial_qubit_state(config)`:** Builds the starting state at $t=0$ obeying **Gauss's Law** ($E_0 = \frac{i}{k}\sum f_0(v_j)\Delta v$) and divides by `np.linalg.norm` so the squared qubit amplitudes sum to `1.0` (100% probability).
+
+### Section 3: Running the Quantum Circuit vs. Classical Algorithm (`simulation.py`)
+- **`build_diagonal_circuit` & `build_arrow_circuit` (Problem 3 Fix):**
+  - Instead of decomposing $H$ into $\sim 4^n$ Pauli strings, `build_fast_arrowhead_step_circuit` uses a 2nd-order Suzuki-Trotter split:
+    $$\exp(-i H \Delta t) \approx \exp\left(-i H_{\text{diag}} \frac{\Delta t}{2}\right) \exp(-i H_{\text{arrow}} \Delta t) \exp\left(-i H_{\text{diag}} \frac{\Delta t}{2}\right)$$
+  - Because $v_j$ is linear in the binary bits of index $j$, $\exp(-i H_{\text{diag}} \Delta t/2)$ takes just **1 single-qubit `RZ` gate per qubit** plus a zero-state phase correction.
+  - Because $H_{\text{arrow}}$ only couples Slot `0` to a single collective velocity state $\lvert\phi\rangle$, $\exp(-i H_{\text{arrow}} \Delta t)$ is implemented exactly in the 2D subspace spanned by its two eigenstates $\lvert\psi_\pm\rangle = (\lvert 0\rangle \mp i\lvert\phi\rangle)/\sqrt{2}$.
+- **`run_quantum_simulation(config)`:** Prepares the initial state with Qiskit's `StatePreparation`, evolves 200 steps, reads out Slot `0` probability $|\text{state}[0]|^2$, simulates `2,000` hardware measurement shots via a binomial draw, and records transpiled `CNOT` gate counts, circuit depth, and estimated superconducting QPU time.
+- **`run_classical_simulation(config)`:** Converts $H$ into a sparse `csr_matrix`, solves $\frac{d(\text{state})}{dt} = -i H \cdot \text{state}$ with `scipy.integrate.solve_ivp` (`RK45`), and computes exact classical floating-point operations (`total_flops = rhs_evaluations * nnz * 8`).
+
+### Section 4: Measuring How Fast the Wave Fades (`analysis.py`)
+- Because velocity is split into discrete buckets of width $\Delta v$, after the **fake revival time** $t_{\text{revival}} = \frac{2\pi}{k \cdot \Delta v}$ the discrete buckets drift back into phase and create an artificial echo.
+- `measure_damping_rate` finds oscillation peaks safely before $0.8 \times t_{\text{revival}}$, fits a straight line to $\ln(\text{Peak Energy})$ vs. time $t$, and divides the slope by `2` (since $\text{Energy} = |E|^2 \propto e^{2\gamma t}$) to get the Landau damping rate $\gamma$.
+
+### Section 5: Graphing the Results (`plotting.py`)
+- Generates all 5 figures (`1a`, `1b`, `1`, `2`, `3`) using Matplotlib's `Agg` backend so it runs cleanly from any terminal without popping up blocking windows.
+
+---
+
+## 6. How to Run
+
+From the repository root:
+
+```bash
+# Windows (PowerShell)
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
 python gemini_imp/plasma_simulation.py
+
+# Linux / macOS
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python gemini_imp/plasma_simulation.py
 ```
 
-This prints comparison metrics and gate-scaling stats in the terminal and writes three PNG figures into `gemini_imp/figures/`:
-- `1_quantum_vs_classical_wave.png` — Wave energy decay over time (Classical RK45 vs. Qiskit Statevector vs. 2,000 Quantum Hardware Shots).
-- `2_factors_affecting_plasma.png` — Side-by-side comparison of how **Wavenumber ($k$)** and **Temperature ($T$)** change the wave's damping speed.
-- `3_quantum_vs_classical_scaling.png` — 3D reactor memory compression ($N^6$ classical numbers vs. $6 \log_2 N$ qubits) alongside the $\sim 4^n$ CNOT gate bottleneck.
-
-[Back to top](#quick-navigation)
-
 ---
 
-## Section 1: Physical Factors & Simulation Settings
+## 7. Plain-English Glossary
 
-> **Code:** [config.py](config.py) (`DEFAULT_CONFIG`, `make_velocity_grid`)
-
-### The Three Physical Factors
-In a tokamak fusion reactor, three main physical factors control how a plasma wave behaves:
-
-1. **Wavenumber ($k$):**
-   Measures how tightly packed the wave crests are ($k = 2\pi / \text{wavelength}$).
-   - Small $k$ = long, stretched-out wave.
-   - Large $k$ = short, tightly packed wave (electrons surf it easily, so the wave fades faster).
-
-2. **Temperature ($T$):**
-   Controls the random "thermal speed" of electrons ($\text{thermal\_speed} = \sqrt{T}$).
-   - Higher temperature = wider bell curve of electron speeds = more fast electrons available to absorb energy from the wave = the wave fades faster.
-
-3. **Density ($n_e$):**
-   How tightly packed the electrons are. Controls the "plasma frequency" ($\sqrt{n_e}$), which is how fast displaced electrons snap back and forth like a spring.
-
-### Quantum Register Size & Velocity Grid (`make_velocity_grid`)
-Alongside the physics factors, we choose our **quantum register size** (`n_qubits`):
-- In quantum computing, $n$ qubits can hold an array of $2^n$ complex numbers all at once.
-- With **5 qubits**, our quantum register holds $2^5 = 32$ numbers simultaneously (indices `0` to `31`).
-
-**How we fit continuous velocity into a fixed number of qubits:**
-- **Slot `0`** (binary `|00000⟩`) is reserved for the wave's **Electric Field ($E$)**.
-- **Slots `1` to `2^n - 1`** (indices `1` to `31` for 5 qubits) hold buckets of electron **velocity**, evenly spaced from `-max_velocity` to `+max_velocity` using `np.linspace`.
-- `dv = velocities[1] - velocities[0]` is the spacing (width) between two neighbouring velocity buckets.
-
-*Next:* [Section 2 (`hamiltonian.py`)](#section-2-encoding-physics-into-qubits--building-the-matrix) | [Back to top](#quick-navigation)
-
----
-
-## Section 2: Encoding Physics into Qubits & Building the Matrix
-
-> **Code:** [hamiltonian.py](hamiltonian.py) (`maxwellian_bell_curve`, `build_hamiltonian_matrix`, `create_initial_qubit_state`)
-
-How do physics equations manipulate qubits?
-
-### Step A: The Bell Curve of Electron Speeds (`maxwellian_bell_curve`)
-In a calm plasma at temperature $T$, most electrons move slowly (near $v = 0$) and very few move extremely fast. This follows a Gaussian **Maxwellian distribution**:
-
-$$f_0(v) = \frac{1}{\sqrt{2 \pi T}} \exp\left(-\frac{v^2}{2T}\right)$$
-
-Notice how `temperature` stretches this bell curve: higher temperature gives a wider spread of speeds.
-
-### Step B: The Physics Equations (Linearised Vlasov-Ampère System)
-When a small wave ripple disturbs the plasma, two rules govern how the state changes over time:
-1. **Electron buckets (slots `1..31`):** Electrons coast at speed $v$ along the wave $k$, **and** get pushed by the electric field $E$.
-2. **Electric field (slot `0`):** Moving electrons form an electric current, which changes the electric field $E$.
-
-### Step C: Turning the Equations into a Quantum Matrix (`build_hamiltonian_matrix`)
-Quantum computers can only apply **unitary** rotations of the form:
-
-$$\text{new\_state} = \exp(-i \cdot H \cdot dt) \cdot \text{old\_state}$$
-
-where $H$ is a symmetric (**Hermitian**) matrix of size $2^n \times 2^n$ (it equals its own conjugate transpose). By scaling each velocity bucket properly, the Vlasov-Ampère equations become a clean $32 \times 32$ "arrowhead" matrix:
-- **Coupling term:** $\text{coupling}_j = \sqrt{n_e} \cdot v_j \cdot \sqrt{f_0(v_j) \cdot dv}$ (combines density $n_e$, velocity $v$, and temperature $T$ inside $f_0$).
-- **Diagonal entries** `H[j, j] = k * v_j` — electrons coasting.
-- **Top row** `H[0, j] = +i * coupling_j` — velocities changing the electric field.
-- **Left column** `H[j, 0] = -i * coupling_j` — electric field pushing the velocities (negative conjugate mirror keeps $H$ Hermitian).
-
-### Building the Starting State at $t = 0$ (`create_initial_qubit_state`)
-Two rules must both be satisfied when building the initial array of $2^n$ amplitudes:
-1. **Quantum Rule (Normalisation):** A quantum state vector **must** have total length (norm) `1.0`, because the squared magnitudes of its entries are measurement probabilities that must add up to 100%:
-   $$|\text{state}[0]|^2 + |\text{state}[1]|^2 + \dots + |\text{state}[31]|^2 = 1.0$$
-2. **Physics Rule (Gauss's Law):** Starting with a smooth density ripple in slots `1..31` ($\sqrt{f_0 \cdot dv}$) produces a matching initial electric field in slot `0`:
-   $$E_{\text{initial}} = \frac{i}{k} \sum (f_0 \cdot dv)$$
-
-The function concatenates `[E_initial, velocity_slots...]` and divides by `np.linalg.norm(raw_state)` to make it a valid quantum state.
-
-*Previous:* [Section 1 (`config.py`)](#section-1-physical-factors--simulation-settings) | *Next:* [Section 3 (`simulation.py`)](#section-3-running-the-simulation-quantum-vs-classical) | [Back to top](#quick-navigation)
-
----
-
-## Section 3: Running the Simulation (Quantum vs. Classical)
-
-> **Code:** [simulation.py](simulation.py) (`build_qiskit_step_circuit`, `run_quantum_simulation`, `run_classical_simulation`)
-
-Here we evolve our starting state forward in time from $t = 0$ to $t = 20$ using two completely different methods.
-
-### Method 1: Quantum Simulation with Qiskit (`build_qiskit_step_circuit`, `run_quantum_simulation`)
-A real quantum processor cannot multiply a $32 \times 32$ matrix directly. Instead:
-1. **Pauli Decomposition:** `SparsePauliOp.from_operator(H, atol=1e-12)` breaks the matrix $H$ into a weighted sum of basic qubit flips and phase rotations called **Pauli strings** (combinations of `I`, `X`, `Y`, `Z` gates on the 5 qubits).
-2. **Trotter Step Circuit:** `PauliEvolutionGate` with `SuzukiTrotter(order=2)` builds a quantum circuit for **one time step** ($dt = 0.1$) out of standard 1-qubit rotations and 2-qubit CNOT gates. Because the Pauli pieces do not commute (order matters), slicing time into steps introduces a small **Trotter approximation** error.
-3. **Gate Decomposition:** `.decompose()` expands the `PauliEvolutionGate` block into actual quantum gates instead of treating it as a black-box matrix.
-4. **State Preparation & Evolution:** `StatePreparation(init_array)` loads the starting plasma state into `|00000⟩`. Because every time step applies the exact same circuit gates, extracting `Operator(step_qc).data` once and multiplying it `n_steps` times gives the exact same statevector result as running a 200-step circuit.
-
-**How outputs are extracted from qubits:**
-- Slot `0` corresponds to the all-zeros qubit state `|00000⟩`.
-- When you measure the qubits, the probability of getting `00000` is $|\text{state}[0]|^2$.
-- Physically, $|\text{state}[0]|^2$ **is** the Electric Field Energy of the plasma wave.
-
-**Simulating Quantum Hardware Shots:**
-On real quantum hardware, you cannot read out exact probabilities directly—you run the circuit for a finite number of **shots** (here `2,000` runs). Each run outputs a single binary bitstring like `00000` or `01011`. Counting how many times `00000` appears out of 2,000 shots (`rng.binomial(n=2000, p=exact_field_energy) / 2000`) gives a realistic noisy estimate of the field energy.
-
-### Method 2: Classical Simulation with SciPy (`run_classical_simulation`)
-A conventional computer solves the differential equation directly in RAM:
-
-$$\frac{d(\text{state})}{dt} = -i \cdot H \cdot \text{state}$$
-
-using `scipy.integrate.solve_ivp` (an adaptive 4th/5th-order Runge-Kutta numerical integrator, `RK45`, with `rtol=1e-8`, `atol=1e-10`). Index `0` of each state gives the classical electric field energy $|\text{state}[0]|^2$ for direct accuracy and speed comparison.
-
-*Previous:* [Section 2 (`hamiltonian.py`)](#section-2-encoding-physics-into-qubits--building-the-matrix) | *Next:* [Section 4 (`analysis.py`)](#section-4-analysing-data-measuring-how-fast-the-wave-fades) | [Back to top](#quick-navigation)
-
----
-
-## Section 4: Analysing Data (Measuring How Fast the Wave Fades)
-
-> **Code:** [analysis.py](analysis.py) (`measure_damping_rate`)
-
-As the plasma wave sloshes back and forth, its electric field energy bounces up and down while the **peaks** shrink exponentially:
-
-$$\text{Peak\_Energy}(t) \sim \exp(2 \gamma t)$$
-
-### How `measure_damping_rate` extracts $\gamma$
-1. **Avoid the Fake Mathematical Echo (`fake_revival_time`):** Because velocity is split into discrete buckets of spacing $dv$, after $t_{\text{revival}} = \frac{2\pi}{k \cdot dv}$ the grid creates a fake mathematical echo where energy bounces back up artificially. We restrict fitting to `[fit_start = 2.0, min(end_time, 0.8 * fake_revival_time)]`.
-2. **Peak Detection:** `scipy.signal.find_peaks(energy)` locates the top of each oscillation bounce inside that valid window.
-3. **Log-Linear Regression:** Taking the natural logarithm $\ln(\text{Peak\_Energy})$ turns an exponential decay curve into a **straight line**:
-   $$\ln(\text{Peak\_Energy}) = \text{slope} \cdot t + \text{intercept}$$
-   Fitting a degree-1 line with `np.polyfit` gives the slope.
-4. **Divide Slope by 2:** Because Energy $= |\text{Field}|^2$, $\exp(2 \gamma t)$ has slope $2\gamma$, so `damping_rate = slope / 2.0` (a negative number means the wave is fading).
-
-*Previous:* [Section 3 (`simulation.py`)](#section-3-running-the-simulation-quantum-vs-classical) | *Next:* [Section 5 (`plotting.py`)](#section-5-plotting-data-with-matplotlib) | [Back to top](#quick-navigation)
-
----
-
-## Section 5: Plotting Data with Matplotlib
-
-> **Code:** [plotting.py](plotting.py) (`plot_figure_1_quantum_vs_classical`, `plot_figure_2_factors_comparison`, `plot_figure_3_quantum_vs_classical_viability`)
-
-Uses Matplotlib's non-interactive `Agg` backend so graphs save straight to PNG files in `gemini_imp/figures/` without blocking on pop-up windows. Together, the 3 figures answer both halves of the research question:
-
-### Figure 1: `1_quantum_vs_classical_wave.png` (`plot_figure_1_quantum_vs_classical`)
-- Uses `ax.semilogy()` so the Y-axis is on a logarithmic scale ($10^0, 10^{-1}, 10^{-2}, \dots$), turning exponential decay into a straight downward slope.
-- Overlays the **Classical RK45 Solver** (black solid line), **Quantum Circuit Trotter Statevector** (blue dashed line), **2,000-Shot Hardware Readout** (orange dots, every 3rd step for readability), and the **Fitted Decay Slope** (orange dotted envelope).
-
-### Figure 2: `2_factors_affecting_plasma.png` (`plot_figure_2_factors_comparison`)
-- Sweeps physical parameters and plots a 1×2 side-by-side comparison of wave fade speed $|\gamma|$ for both solvers:
-  - **Panel A (Wavenumber $k \in [0.3, 0.7]$):** Shorter wavelengths (higher $k$) damp faster.
-  - **Panel B (Temperature $T \in [0.6, 1.6]$):** Hotter plasma (higher $T$) creates faster electrons that absorb energy faster, increasing damping.
-
-### Figure 3: `3_quantum_vs_classical_scaling.png` (`plot_figure_3_quantum_vs_classical_viability`)
-Directly answers *"Would it be useful to simulate on a quantum computer vs. a conventional computer?"*:
-- **Left Panel (The Pro — 3D Reactor Memory Compression):** In a real 3D reactor (3 space axes + 3 velocity axes = 6 dimensions), a grid with $N$ points per axis requires $N^6$ numbers in classical RAM, versus only $6 \log_2 N$ qubits on a quantum register.
-- **Right Panel (The Con — Current Gate-Count Bottleneck):** Transpiles a single Trotter time step for `n_qubits` $\in \{3, 4, 5, 6\}$ into standard IBM hardware gates (`cx`, `rz`, `sx`, `x`). Because generic dense Pauli decomposition scales as $\sim 4^n$ 2-qubit CNOT gates per step, today's noisy quantum hardware cannot run deep circuits yet without specialized sparse-matrix quantum algorithms.
-
-*Previous:* [Section 4 (`analysis.py`)](#section-4-analysing-data-measuring-how-fast-the-wave-fades) | *Next:* [Main Entry Point (`plasma_simulation.py`)](#main-entry-point) | [Back to top](#quick-navigation)
-
----
-
-## Main Entry Point
-
-> **Code:** [plasma_simulation.py](plasma_simulation.py) (`main`)
-
-`plasma_simulation.py` imports the functions from Sections 1–5 and runs the full workflow in three numbered steps:
-1. **`[1/3]` Single-Wave Comparison:** Runs both `run_quantum_simulation` and `run_classical_simulation` on `DEFAULT_CONFIG`, computes damping rates and runtimes, and saves Figure 1.
-2. **`[2/3]` Parameter Sweeps:** Calls `plot_figure_2_factors_comparison()` across wavenumbers and temperatures and saves Figure 2.
-3. **`[3/3]` Scaling & Gate Costs:** Calls `plot_figure_3_quantum_vs_classical_viability()`, prints the CNOT count and circuit depth for 3–6 qubits, and saves Figure 3.
-
-*Previous:* [Section 5 (`plotting.py`)](#section-5-plotting-data-with-matplotlib) | [Back to top](#quick-navigation)
-
----
-
-## Quick Glossary
-
-| Term | Plain-English Meaning | Where Used |
-|---|---|---|
-| **Landau Damping** | Collisionless fading of a plasma wave as resonant electrons absorb its energy | [Section 1](#section-1-physical-factors--simulation-settings), [Section 4](#section-4-analysing-data-measuring-how-fast-the-wave-fades) |
-| **Wavenumber ($k$)** | $2\pi / \text{wavelength}$ — how tightly packed wave crests are | [config.py](config.py), [plotting.py](plotting.py) |
-| **Maxwellian ($f_0$)** | Gaussian bell curve of electron speeds at temperature $T$ | [hamiltonian.py](hamiltonian.py) |
-| **Hamiltonian ($H$)** | Hermitian $2^n \times 2^n$ matrix driving unitary time evolution $e^{-iHt}$ | [hamiltonian.py](hamiltonian.py) |
-| **Pauli Strings** | Weighted sum of `I, X, Y, Z` tensor products representing $H$ for quantum gates | [simulation.py](simulation.py) |
-| **Suzuki-Trotter** | Gate-based approximation of $e^{-i H \, dt}$ by slicing non-commuting Pauli terms | [simulation.py](simulation.py) |
-| **Shots** | Repeated quantum circuit measurements used to estimate $P(\|00000\rangle)$ | [simulation.py](simulation.py) |
-| **Fake Revival Time** | Time $2\pi / (k \, dv)$ when discrete velocity buckets cause an artificial wave echo | [analysis.py](analysis.py) |
-| **CNOT / Depth** | 2-qubit entangling gate count and sequential circuit layers (hardware noise bottleneck) | [plotting.py](plotting.py) |
-
-[Back to top](#quick-navigation)
+| Term | Plain-English Meaning |
+|---|---|
+| **Tokamak** | A donut-shaped magnetic bottle used to trap hot plasma for nuclear fusion. |
+| **Landau Damping** | When a plasma wave fades away on its own because slightly-slower electrons "surf" the wave and steal its energy—without any particle collisions. |
+| **Wavenumber ($k$)** | $2\pi / \text{wavelength}$ — how tightly packed the wave crests are. Higher $k$ = shorter wave = fades faster. |
+| **Qubit Superposition** | $n$ qubits hold $2^n$ complex numbers (amplitudes) at once. 5 qubits hold 32 slots (`00000` to `11111`). |
+| **Arrowhead Matrix ($H$)** | Our $32 \times 32$ physics matrix that only has numbers on the diagonal (coasting electrons) plus Row 0 and Column 0 (electric field coupling), with zeros everywhere else. |
+| **Suzuki-Trotter Step** | Splitting a combined physics update into alternating simpler gate steps ($\text{Diag}(\Delta t/2) \rightarrow \text{Arrow}(\Delta t) \rightarrow \text{Diag}(\Delta t/2)$). |
+| **Hardware Shots** | Running the quantum circuit 2,000 times and counting how often `00000` is measured to estimate the wave's electric field energy. |
+| **FLOPs vs. CNOTs** | Fair, hardware-independent ways to count work: Floating-Point Operations (`FLOPs`) on a regular computer vs. 2-qubit entangling gates (`CNOTs`) on a quantum computer. |

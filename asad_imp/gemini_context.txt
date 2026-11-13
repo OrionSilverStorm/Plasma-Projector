@@ -1,0 +1,68 @@
+# Antigravity CLI Context & Project Summary
+Date: 2026-11-13
+Repository: Plasma-Projector
+Workspace: C:\Users\Asad\Docs\Docs\Coding_Projects\quant_project\repo\Plasma-Projector
+Implementation Folder: asad_imp
+
+---
+
+## 1. Project Background & Research Question
+- Research question:
+  "How do various factors affect the movement of plasma in a nuclear fusion reactor, and would it be useful to simulate in a quantum computer vs a conventional computer?"
+- Group context:
+  - 4 students total: 2 doing spoken explanations, 2 working on code simulation in Qiskit (including Asad).
+  - First-year CS student perspective: minimal physics/quantum background required; clean, understandable code with detailed commentary.
+
+---
+
+## 2. Partner's Implementation (`src/` directory)
+- Modeled after Engel, Smith & Parker (2019) simulating 1D Landau damping of an electrostatic plasma wave.
+- Architecture:
+  - `src/config.py`: Simulation parameters (`Params`), normalized dimensionless units, real-world scale converter (`plasma_scales`).
+  - `src/hamiltonian.py`: Builds a 2^n x 2^n Hermitian arrowhead matrix (Slot 0 = electric field, Slots 1..2^n-1 = velocity grid).
+  - `src/circuits.py`: Uses Qiskit to decompose the Hamiltonian into Pauli strings (`SparsePauliOp.from_operator`) and builds 2nd-order Suzuki-Trotter step circuits (`PauliEvolutionGate`).
+  - `src/simulate.py`: Simulates evolution via Trotter step operator, fits damping rate from peak envelope, and implements a shot-based stability classifier.
+  - `src/theory.py`: Solves the Landau dispersion relation using Newton's method on the plasma dispersion function (`wofz`).
+  - `src/resources.py`: Measures transpiled CNOT gates/depth and compares classical phase-space grid scaling (N^6) vs qubits (6 log2 N).
+  - `src/plots.py` & `src/main.py`: Generates 4 figures (`figures/1_damping_curve.png` through `4_stability_map.png`).
+  - Note: Partner archived classical ODE simulation into `archive/classical_simulation.py`.
+
+---
+
+## 3. Asad's Implementation (`asad_imp/` directory)
+Originally created as a single-file script, now refactored into a clean modular architecture where Python files contain concise code/docstrings that link to full physics and mathematical explanations in `asad_imp/README.md`.
+
+- **Modular Architecture by Section:**
+  - `asad_imp/config.py` (**Section 1**):
+    - Physical Factors & Simulation Settings (`wavenumber` $k$, `temperature` $T$, `density` $n_e$, `n_qubits`).
+    - Discrete velocity grid generation (`make_velocity_grid`) allocating Slot 0 to electric field and Slots 1..$2^n-1$ to velocity buckets.
+  - `asad_imp/hamiltonian.py` (**Section 2**):
+    - `maxwellian_bell_curve`: Evaluates equilibrium electron velocity distribution $f_0(v)$.
+    - `build_hamiltonian_matrix`: Assembles the $2^n \times 2^n$ Hermitian arrowhead matrix $H$ coupling field and velocities.
+    - `create_initial_qubit_state`: Builds normalized $2^n$ initial state matching Gauss's law at $t=0$.
+  - `asad_imp/simulation.py` (**Section 3**):
+    - `build_qiskit_step_circuit`: Converts $H$ to Pauli strings and generates 2nd-order Suzuki-Trotter step circuit.
+    - `run_quantum_simulation`: Qiskit `StatePreparation`, Trotter statevector evolution, and 2,000-shot simulated measurement readout.
+    - `run_classical_simulation`: Conventional Runge-Kutta ODE solver (`scipy.integrate.solve_ivp` RK45) run side-by-side.
+  - `asad_imp/analysis.py` (**Section 4**):
+    - `measure_damping_rate`: Peak-finding and log-linear regression fitting to extract Landau damping rate prior to the discrete-grid fake revival time.
+  - `asad_imp/plotting.py` (**Section 5**):
+    - Matplotlib functions (using `Agg` backend) generating three presentation-ready PNG figures in `asad_imp/figures/`:
+      - `1_quantum_vs_classical_wave.png`: Classical RK45 vs Quantum Trotter vs 2,000 Hardware Shots.
+      - `2_factors_affecting_plasma.png`: Side-by-side sweep of wavenumber $k$ (0.3–0.7) and temperature $T$ (0.6–1.6).
+      - `3_quantum_vs_classical_scaling.png`: 3D reactor memory compression ($N^6$ vs $6 \log_2 N$) and gate depth scaling ($\sim 4^n$ CNOTs).
+  - `asad_imp/plasma_simulation.py` (**Main Entry Point**):
+    - Orchestrates the full simulation pipeline, prints comparison metrics and gate scaling stats, and saves figures.
+  - `asad_imp/README.md`:
+    - Centralized comprehensive documentation containing all detailed conceptual, physics, and mathematical explanations formerly in Python comments.
+    - Includes a file navigation guide, reading order, section-by-section breakdown with inter-section navigation, and a quick glossary.
+
+---
+
+## 4. How to Run
+```powershell
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+python asad_imp/plasma_simulation.py
+```

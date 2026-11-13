@@ -3,7 +3,7 @@
 A beginner-friendly, modular **Quantum (Qiskit)** vs. **Conventional (SciPy)** plasma wave simulation built so anyone—**with zero physics or quantum computing background**—can immediately see:
 1. **What the problem is** (keeping a nuclear fusion reactor stable).
 2. **What the quantum circuit is doing** (taking physical factors $\rightarrow$ encoding them into qubits $\rightarrow$ evolving them with quantum gates $\rightarrow$ reading out probabilities $\rightarrow$ graphing the wave).
-3. **Whether a quantum computer is genuinely better than a regular computer** (comparing memory compression, hardware-independent operation counts, and our **Fast Arrowhead Circuit** optimization).
+3. **Whether a quantum computer is genuinely better than a regular computer** (comparing memory compression, hardware-independent operation counts, our **Fast Arrowhead Circuit** optimization, and a **10% Energy Threshold Heatmap** that avoids the quantum readout bottleneck).
 
 ---
 
@@ -12,12 +12,12 @@ A beginner-friendly, modular **Quantum (Qiskit)** vs. **Conventional (SciPy)** p
 - [1. What Is the Problem? (Plain-English Physics)](#1-what-is-the-problem-plain-english-physics)
 - [2. What Is the Quantum Circuit Doing? (Input Factors $\rightarrow$ Qubits $\rightarrow$ Output Graphs)](#2-what-is-the-quantum-circuit-doing-input-factors--qubits--output-graphs)
 - [3. Is the Quantum Circuit Actually Better Than a Regular Computer?](#3-is-the-quantum-circuit-actually-better-than-a-regular-computer)
-- [4. Visual Guide to the 5 Generated Graphs](#4-visual-guide-to-the-5-generated-graphs)
+- [4. Complete Guide to All 6 Generated Graphs (What Each Graph Explains & Why We Need It)](#4-complete-guide-to-all-6-generated-graphs-what-each-graph-explains--why-we-need-it)
 - [5. File Map & Code Walkthrough (Sections 1–5)](#5-file-map--code-walkthrough-sections-15)
   - [Section 1: Physical Factors & Scenarios (`config.py`)](#section-1-physical-factors--scenarios-configpy)
   - [Section 2: Encoding Physics into Qubits & the Arrowhead Matrix (`hamiltonian.py`)](#section-2-encoding-physics-into-qubits--the-arrowhead-matrix-hamiltonianpy)
   - [Section 3: Running the Quantum Circuit vs. Classical Algorithm (`simulation.py`)](#section-3-running-the-quantum-circuit-vs-classical-algorithm-simulationpy)
-  - [Section 4: Measuring How Fast the Wave Fades (`analysis.py`)](#section-4-measuring-how-fast-the-wave-fades-analysispy)
+  - [Section 4: Measuring How Fast the Wave Fades & the 10% Threshold (`analysis.py`)](#section-4-measuring-how-fast-the-wave-fades--the-10-threshold-analysispy)
   - [Section 5: Graphing the Results (`plotting.py`)](#section-5-graphing-the-results-plottingpy)
 - [6. How to Run](#6-how-to-run)
 - [7. Plain-English Glossary](#7-plain-english-glossary)
@@ -46,8 +46,8 @@ Imagine ocean waves and surfers paddling at different speeds:
 flowchart LR
     A["1. Input Factors\n- Wavenumber (k)\n- Temperature (T)\n- Density (n_e)"] --> B["2. Load 5 Qubits (32 Slots)\n- Slot 0 (|00000⟩): Electric Field\n- Slots 1..31: Velocity Buckets"]
     B --> C["3. Fast Arrowhead Circuit\n- Diagonal: 5 RZ Gates (0 CNOTs)\n- Arrow: Field-Velocity Coupling\n- Repeat for 200 Time Steps"]
-    C --> D["4. Read Out Qubits\n- Measure P(|00000⟩)\n- 2,000 Hardware Shots\n- Fit Wave Decay Rate"]
-    D --> E["5. Output Graphs\n- 1a: Quantum Scenarios\n- 1b: Classical Scenarios\n- 1, 2, 3: Comparisons"]
+    C --> D["4. Read Out Qubits\n- Measure P(|00000⟩)\n- 2,000 Hardware Shots\n- Check 10% Threshold"]
+    D --> E["5. Output 6 Graphs\n- 1a & 1b: Scenarios\n- 1 & 2: Wave & Factors\n- 3 & 4: Scaling & Heatmap"]
 ```
 
 ### Step-by-Step Pipeline:
@@ -67,7 +67,7 @@ flowchart LR
 4. **Reads Out the Answer & Graphs It (`analysis.py` & `plotting.py`):**
    - When you measure the qubits at the end of a run, the probability of all 5 qubits reading zero (`00000`) equals $|\text{state}[0]|^2$, which is the **Electric Field Energy** of the wave!
    - Running the circuit **2,000 times ("shots")** and counting how often `00000` appears gives the realistic hardware measurement.
-   - Tracking the peaks of that energy over time gives the **damping rate** (how fast the wave fades).
+   - Tracking the peaks of that energy over time gives the **damping rate** (how fast the wave fades) and tells a reactor controller whether the wave drops below **10% of its starting energy** in time.
 
 ---
 
@@ -97,26 +97,89 @@ Originally, converting the $2^n \times 2^n$ Hamiltonian matrix $H$ into quantum 
 
 ### The Final Verdict: When Should You Use a Quantum Computer?
 1. **For a 1D Wave (Our 5-Qubit Demo): Regular Computer Wins.**
-   In 1D, the state vector only has 32 numbers. A classical sparse solver finishes the entire 200-step simulation in under **1 million FLOPs** (~2 milliseconds on a laptop), whereas even our optimized quantum circuit needs `368 × 200 = 73,600` CNOT gates across 200 steps.
+   In 1D, the state vector only has 32 numbers. A classical sparse solver finishes the entire 200-step simulation in ~1.5 million FLOPs (~2 milliseconds on a laptop), whereas even our optimized quantum circuit needs `368 × 200 = 73,600` CNOT gates across 200 steps.
 2. **For a Full 3D Fusion Reactor (`3D3V`): Quantum Computer Has a Massive Memory Advantage.**
    A real tokamak has **3 space axes $(x,y,z)$ + 3 velocity axes $(v_x,v_y,v_z)$ = 6 dimensions**.
    - At a modest grid resolution of $N = 128$ points per axis, a conventional computer must store $128^6 \approx \mathbf{4.4 \times 10^{12}}$ **numbers** (~70 Terabytes of RAM). At $N = 1024$, it needs $10^{18}$ numbers (impossible on any supercomputer).
    - A quantum computer stores the exact same $128^6$ grid in just **$6 \log_2(128) = \mathbf{42\text{ qubits}}$**!
-   - **Bottom line:** Quantum computing is not needed for 1D waves today, and current quantum hardware is still too noisy for deep circuits—but once fault-tolerant quantum hardware arrives, structured arrowhead circuits make full 3D fusion simulations possible in dozens of qubits instead of petabytes of classical RAM.
 
 ---
 
-## 4. Visual Guide to the 5 Generated Graphs
+## 4. Complete Guide to All 6 Generated Graphs (What Each Graph Explains & Why We Need It)
 
-Running `python gemini_imp/plasma_simulation.py` saves five high-resolution PNG graphs in `gemini_imp/figures/`:
+Running `python gemini_imp/plasma_simulation.py` generates **6 PNG figures** in `gemini_imp/figures/`. Here is a clear, moderate-depth breakdown of what each graph shows, how to read it, and *why* it is needed to answer our research question.
 
-| Graph File | What It Shows | Why It Matters for Your Presentation |
-|---|---|---|
-| **`1a_quantum_circuit_scenarios.png`** | **Quantum Circuit Outputs Across 3 Tokamak Scenarios** (Scenario A: Gentle Wave $k=0.35, T=0.8$; Scenario B: Baseline $k=0.50, T=1.0$; Scenario C: Short Wave in Hot Plasma $k=0.65, T=1.3$). | Shows the quantum circuit (blue/green/orange curves + 2,000-shot hardware dots) accurately capturing slow, medium, and fast wave damping. |
-| **`1b_classical_algorithm_scenarios.png`** | **Conventional Algorithm Outputs Across the Same 3 Scenarios** on the exact same vertical & horizontal scales as `1a`. | Placing `1a` and `1b` side-by-side lets anyone visually verify that the 5-qubit quantum circuit reproduces the conventional solver across different reactor conditions! |
-| **`1_quantum_vs_classical_wave.png`** | **Direct Overlay on the Baseline Wave** (Classical Sparse RK45 vs. 5-Qubit Fast Arrowhead Circuit vs. 2,000 Hardware Shots). | Proves that the quantum curve lies right on top of the classical curve (both give damping rate $\gamma \approx -0.154$). |
-| **`2_factors_affecting_plasma.png`** | **How Physical Factors Change Damping Speed:** Sweeps Wavenumber ($k \in [0.3, 0.7]$) in Panel A and Temperature ($T \in [0.6, 1.6]$) in Panel B. | Visually answers the first half of the research question: shorter waves (higher $k$) and hotter plasmas (higher $T$) both cause the wave to fade faster. |
-| **`3_quantum_vs_classical_scaling.png`** | **3-Panel Efficiency & Viability Benchmark:** (1) 3D Reactor Memory Compression ($N^6$ vs. $6\log_2 N$), (2) Problem 3 Fix (Fast Arrowhead vs. Naive Pauli CNOTs), (3) Problem 2 Fair Operations Count (Classical FLOPs vs. Quantum CNOTs). | Directly answers the second half of the research question with quantitative proof. |
+---
+
+### Graph 1A & Graph 1B: `1a_quantum_circuit_scenarios.png` & `1b_classical_algorithm_scenarios.png`
+*(Side-by-Side Scenario Comparison: Quantum Circuit vs. Conventional Algorithm)*
+
+- **What these two graphs explain:**
+  - **Graph 1A (`1a_quantum_circuit_scenarios.png`)** shows the output of our **5-Qubit Fast Arrowhead Quantum Circuit** across three completely different fusion reactor conditions:
+    1. **Scenario A (`k = 0.35, T = 0.8` — Long, Gentle Wave in Cooler Plasma):** Because the wave is stretched out and electrons move more slowly, very few electrons can "surf" the wave to steal its energy. The wave bounces up and down while fading very slowly (`rate = -0.0317`).
+    2. **Scenario B (`k = 0.50, T = 1.0` — Baseline Tokamak Ripple):** A typical wave tightness and temperature where Landau damping drains energy at a moderate pace (`rate = -0.1540`).
+    3. **Scenario C (`k = 0.65, T = 1.3` — Tight Wave in Hotter Plasma):** Shorter wavelength plus faster electrons means many electrons surf the wave, draining its energy almost immediately (`rate = -0.3683`).
+  - **Graph 1B (`1b_classical_algorithm_scenarios.png`)** shows the exact same three scenarios computed by a **Conventional Computer (`scipy.integrate.solve_ivp` Sparse RK45 Solver)** using identical X and Y axes.
+- **How to read the curves:**
+  - The **Y-axis is logarithmic (`10⁰` down to `10⁻⁴`)** because exponential decay looks like a straight downward line on a log scale.
+  - The **bouncing arches** happen because energy sloshes back and forth between the electric field (peaks) and moving electrons (valleys) twice per wave cycle.
+  - The **orange dots in Graph 1A** show what a real quantum computer outputs when you run the circuit **2,000 times ("shots")** and count how often `00000` is measured.
+- **Why we need these two graphs:**
+  - Before asking *"Is the quantum computer faster?"*, we first have to prove **it actually gets the physics right across different environments**. Putting Graph 1A and Graph 1B next to each other lets any viewer see that the 5-qubit quantum circuit faithfully reproduces the conventional differential-equation solver in slow, medium, and fast damping scenarios.
+
+---
+
+### Graph 1: `1_quantum_vs_classical_wave.png`
+*(Direct Single-Wave Overlay: Quantum vs. Classical on the Baseline Wave)*
+
+- **What this graph explains:**
+  - Places the **Classical Sparse Solver (solid black line)**, the **Quantum 5-Qubit Fast Arrowhead Circuit (blue dashed line)**, the **2,000-Shot Hardware Readout (orange dots)**, and the **Fitted Decay Slope (red dotted line)** on top of one another on a single chart (`k = 0.5, T = 1.0`).
+- **Why we need this graph:**
+  - While Graphs 1A and 1B let you inspect each method separately across scenarios, overlaying both curves on the exact same axes proves that **the quantum circuit's trajectory lies directly on top of the conventional algorithm's curve** from $t = 0$ to $t = 20$.
+  - It also visually demonstrates **shot noise**: when the wave energy drops below `10⁻³` (after $t = 15$), running 2,000 hardware shots means only 1 or 2 shots land on `00000`, explaining why hardware dots quantized at `1/2000 = 0.0005` appear near the bottom right.
+
+---
+
+### Graph 2: `2_factors_affecting_plasma.png`
+*(Parameter Sweeps: How Wavenumber $k$ and Temperature $T$ Control Wave Fading)*
+
+- **What this graph explains:**
+  - **Left Panel (Factor 1 — Wavenumber $k$ from `0.3` to `0.7`):** Plots the wave fade speed $|\gamma|$ as wave crests become tighter (shorter wavelength). Both the quantum circuit and classical solver show fade speed rising steeply from `~0.015` at $k = 0.3$ to `~0.38` at $k = 0.7$.
+  - **Right Panel (Factor 2 — Electron Temperature $T$ from `0.6` to `1.6`):** Plots the wave fade speed as the plasma gets hotter. Higher temperature widens the bell curve of electron speeds, putting more fast electrons near the wave's speed and accelerating damping from `~0.04` to `~0.32`.
+- **Why we need this graph:**
+  - It directly answers the **first half of our research question** (*"How do various factors affect the movement of plasma in a nuclear fusion reactor?"*). Instead of just looking at raw wave bounces, this graph summarizes 11 full simulations into two clean trend lines that anyone can understand at a glance: **shorter waves ($k \uparrow$) and hotter plasma ($T \uparrow$) both damp ripples faster**.
+
+---
+
+### Graph 4: `4_stability_threshold_heatmap.png`
+*(The 10% Wave Energy Threshold Heatmap — Reactor Controller Decision Map)*
+
+- **What this graph explains:**
+  - Imagine you are designing the **magnetic feedback controller** for a tokamak reactor. Your magnets take a certain amount of time to react (the **X-axis: Controller Response Time**), and a plasma ripple of a certain wavelength appears (the **Y-axis: Wavenumber $k$**). You want to know one simple yes/no question:
+    > *"By the time my magnets can react, has this ripple already faded below **10% of its starting energy** on its own?"*
+  - **Colors on the map:**
+    - **Red / Orange Zone (Left of the White Line):** The wave still holds **more than 10%** of its starting energy. It has *not* faded yet—**the reactor controller must act**.
+    - **White Contour Line:** The exact **10% energy threshold cutoff** ($\text{Energy Left} = 0.10 \times \text{Start Energy}$, or $\log_{10}(\text{ratio}) = -1$).
+    - **Green Zone (Right of the White Line):** The wave has naturally damped to **less than 10%** of its initial energy—**safe to ignore; it fades on its own**.
+    - **Blank White Cells (Bottom-Right Corner):** Intentionally masked out beyond $0.8 \times t_{\text{revival}}$ (where discrete velocity buckets cause a fake mathematical echo) so artificial grid echoes are never mistaken for real plasma waves.
+- **Why we need this graph (Crucial for Quantum Computing!):**
+  - One of the biggest traps in quantum computing is the **Readout Bottleneck**: if you use $n$ qubits to simulate $2^n$ numbers and then try to read out *all* $2^n$ numbers at the end, you have to run the circuit $\sim 2^n$ times—destroying your quantum speedup!
+  - This heatmap shows how we **bypass the readout bottleneck**: a reactor controller does not need to read out all $2^n$ velocity buckets. It only needs to check **one probability**—$P(\lvert 00000\rangle)$—at 4 sample points across one wave bounce (`4 × 2,000 = 8,000` shots total) to see if the wave crossed the white 10% threshold line. That shot cost stays constant whether you have 5 qubits or 50 qubits!
+
+---
+
+### Graph 3: `3_quantum_vs_classical_scaling.png`
+*(3-Panel Viability & Efficiency Benchmark: Memory, Circuit Optimization, and Total Operations)*
+
+- **What this graph explains:**
+  - **Panel 1 (Left — 3D Reactor Memory Compression):** Compares how much memory is needed to simulate a full 3D tokamak reactor (`3D3V` = 3 space axes + 3 velocity axes = 6 dimensions) as grid resolution $N$ increases from `8` to `256` points per axis. A regular computer needs **$N^6$ floating-point numbers** (billions to trillions of numbers, tens of Terabytes of RAM), whereas a quantum register needs only **$6 \log_2(N)$ qubits** (`18` to `48` qubits).
+  - **Panel 2 (Middle — Problem 3 Fix: CNOT Gate Count per Step):** Compares the number of 2-qubit `CNOT` gates needed per time step for $n = 3, 4, 5, 6$ qubits. The **pink dashed line** is Qiskit's generic dense Pauli decomposition ($\sim 4^n$ scaling, hitting `9,882` CNOTs/step at 6 qubits). The **green solid line** is our **Fast Arrowhead Circuit**, which exploits the arrowhead matrix structure to slash gate counts by **up to 13.7×** (`720` CNOTs/step at 6 qubits).
+  - **Panel 3 (Right — Problem 2 Fix: Fair Hardware-Independent Operations):** Compares total operations for a full 200-step 1D run across $n = 3..6$ qubits: **Classical Sparse Solver FLOPs (black)** vs. **Naive Pauli CNOTs (pink)** vs. **Fast Arrowhead CNOTs (blue)**.
+- **Why we need this graph:**
+  - It directly answers the **second half of our research question** (*"Would it be useful to simulate in a quantum computer vs. a conventional computer?"*) with hard quantitative evidence rather than guesswork:
+    1. It proves **why quantum is exciting** for 3D fusion reactors (Panel 1: exponential memory compression from $N^6$ numbers down to $6\log_2 N$ qubits).
+    2. It proves **how smart algorithm design makes quantum circuits dramatically more efficient** (Panel 2 & 3: our Fast Arrowhead circuit cuts CNOT gates by up to 13.7×).
+    3. It gives an **honest engineering conclusion** (Panel 3): for small 1D problems, a classical computer still wins (~1.5M FLOPs takes ~2 ms on a CPU), whereas 3D reactor problems on future fault-tolerant quantum computers are where quantum advantage becomes real.
 
 ---
 
@@ -127,9 +190,9 @@ Running `python gemini_imp/plasma_simulation.py` saves five high-resolution PNG 
 | **1** | [`config.py`](config.py) | Physical parameters, 3 tokamak scenarios, velocity grid | `DEFAULT_CONFIG`, `SCENARIOS`, `make_velocity_grid` |
 | **2** | [`hamiltonian.py`](hamiltonian.py) | Maxwellian bell curve, Arrowhead matrix $H$, Gauss's law start state | `maxwellian_bell_curve`, `build_hamiltonian_matrix`, `create_initial_qubit_state` |
 | **3** | [`simulation.py`](simulation.py) | Fast Arrowhead circuit, Naive Pauli circuit, Sparse RK45 solver, FLOPs/gate benchmarks | `build_fast_arrowhead_step_circuit`, `run_quantum_simulation`, `run_classical_simulation`, `benchmark_efficiency_scaling` |
-| **4** | [`analysis.py`](analysis.py) | Peak detection & log-linear damping rate fit before fake revival | `measure_damping_rate` |
-| **5** | [`plotting.py`](plotting.py) | Generates all 5 PNG charts in `gemini_imp/figures/` | `plot_separate_scenario_graphs`, `plot_figure_1_quantum_vs_classical`, `plot_figure_2_factors_comparison`, `plot_figure_3_quantum_vs_classical_viability` |
-| **6** | [`plasma_simulation.py`](plasma_simulation.py) | Main script that runs Steps 1–4 and prints clear terminal output | `main` |
+| **4** | [`analysis.py`](analysis.py) | Peak detection, log-linear damping rate fit, 10% threshold envelope & shot classifier | `measure_damping_rate`, `compute_remaining_energy_envelope`, `classify_reactor_stability` |
+| **5** | [`plotting.py`](plotting.py) | Generates all 6 PNG charts in `gemini_imp/figures/` | `plot_separate_scenario_graphs`, `plot_figure_1_quantum_vs_classical`, `plot_figure_2_factors_comparison`, `plot_figure_3_quantum_vs_classical_viability`, `plot_figure_4_stability_heatmap` |
+| **6** | [`plasma_simulation.py`](plasma_simulation.py) | Main script that runs Stages 1–5 and prints clear terminal output | `main` |
 
 ---
 
@@ -156,12 +219,13 @@ Running `python gemini_imp/plasma_simulation.py` saves five high-resolution PNG 
 - **`run_quantum_simulation(config)`:** Prepares the initial state with Qiskit's `StatePreparation`, evolves 200 steps, reads out Slot `0` probability $|\text{state}[0]|^2$, simulates `2,000` hardware measurement shots via a binomial draw, and records transpiled `CNOT` gate counts, circuit depth, and estimated superconducting QPU time.
 - **`run_classical_simulation(config)`:** Converts $H$ into a sparse `csr_matrix`, solves $\frac{d(\text{state})}{dt} = -i H \cdot \text{state}$ with `scipy.integrate.solve_ivp` (`RK45`), and computes exact classical floating-point operations (`total_flops = rhs_evaluations * nnz * 8`).
 
-### Section 4: Measuring How Fast the Wave Fades (`analysis.py`)
-- Because velocity is split into discrete buckets of width $\Delta v$, after the **fake revival time** $t_{\text{revival}} = \frac{2\pi}{k \cdot \Delta v}$ the discrete buckets drift back into phase and create an artificial echo.
-- `measure_damping_rate` finds oscillation peaks safely before $0.8 \times t_{\text{revival}}$, fits a straight line to $\ln(\text{Peak Energy})$ vs. time $t$, and divides the slope by `2` (since $\text{Energy} = |E|^2 \propto e^{2\gamma t}$) to get the Landau damping rate $\gamma$.
+### Section 4: Measuring How Fast the Wave Fades & the 10% Threshold (`analysis.py`)
+- **`measure_damping_rate`:** Finds oscillation peaks safely before $0.8 \times t_{\text{revival}}$ ($t_{\text{revival}} = \frac{2\pi}{k \cdot \Delta v}$), fits a straight line to $\ln(\text{Peak Energy})$ vs. time $t$, and divides the slope by `2` (since $\text{Energy} = |E|^2 \propto e^{2\gamma t}$) to get the Landau damping rate $\gamma$.
+- **`compute_remaining_energy_envelope`:** Computes the maximum wave energy over a sliding window of width `3.0` plasma ticks (covering at least one wave bounce so an oscillation trough is never mistaken for a damped wave), divided by the starting energy `energy[0]`.
+- **`classify_reactor_stability`:** Simulates `2,000` hardware shots at `4` sample times inside the window (`8,000` total shots) to test whether the wave has faded below the `10%` energy threshold.
 
 ### Section 5: Graphing the Results (`plotting.py`)
-- Generates all 5 figures (`1a`, `1b`, `1`, `2`, `3`) using Matplotlib's `Agg` backend so it runs cleanly from any terminal without popping up blocking windows.
+- Generates all 6 figures (`1a`, `1b`, `1`, `2`, `3`, `4`) using Matplotlib's `Agg` backend so it runs cleanly from any terminal without popping up blocking windows.
 
 ---
 
@@ -196,4 +260,5 @@ python gemini_imp/plasma_simulation.py
 | **Arrowhead Matrix ($H$)** | Our $32 \times 32$ physics matrix that only has numbers on the diagonal (coasting electrons) plus Row 0 and Column 0 (electric field coupling), with zeros everywhere else. |
 | **Suzuki-Trotter Step** | Splitting a combined physics update into alternating simpler gate steps ($\text{Diag}(\Delta t/2) \rightarrow \text{Arrow}(\Delta t) \rightarrow \text{Diag}(\Delta t/2)$). |
 | **Hardware Shots** | Running the quantum circuit 2,000 times and counting how often `00000` is measured to estimate the wave's electric field energy. |
+| **10% Threshold Heatmap** | A decision map showing whether a plasma wave drops below 10% of its starting energy (green = safe) or stays above 10% (red = controller must act) by a given response time. |
 | **FLOPs vs. CNOTs** | Fair, hardware-independent ways to count work: Floating-Point Operations (`FLOPs`) on a regular computer vs. 2-qubit entangling gates (`CNOTs`) on a quantum computer. |

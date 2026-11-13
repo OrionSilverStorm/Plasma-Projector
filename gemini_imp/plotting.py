@@ -19,8 +19,12 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from analysis import measure_damping_rate
-from config import DEFAULT_CONFIG, SCENARIOS
+from analysis import (
+    classify_reactor_stability,
+    compute_remaining_energy_envelope,
+    measure_damping_rate,
+)
+from config import DEFAULT_CONFIG, SCENARIOS, make_velocity_grid
 from simulation import (
     benchmark_efficiency_scaling,
     run_classical_simulation,
@@ -380,3 +384,90 @@ def plot_figure_3_quantum_vs_classical_viability(
     fig.savefig(out_path, dpi=200)
     plt.close(fig)
     return out_path, stats
+
+
+def plot_figure_4_stability_heatmap(
+    threshold: float = 0.10,
+    window: float = 3.0,
+    check_time: float = 8.0,
+) -> tuple[Path, list[dict]]:
+    """
+    Save Figure 4 (`4_stability_threshold_heatmap.png`):
+    A 2D decision heatmap across Wavenumber (k = 0.30..0.70) and Controller Response Time (t),
+    showing the fraction of wave energy left:
+      - Green region (right of the white contour line): wave energy has dropped below 10% (fades on its own).
+      - Red/Orange region (left of the white contour line): wave still holds >10% energy (controller must act).
+      - Blank white cells on the far right: masked out beyond 0.8 * fake_revival_time so grid echoes are hidden.
+    Also returns the shot-based stability classification at t = check_time for each wavenumber.
+    """
+    FIGURES_DIR.mkdir(exist_ok=True)
+    wavenumbers = np.round(np.linspace(0.30, 0.70, 9), 2)
+    _, dv = make_velocity_grid(DEFAULT_CONFIG["n_qubits"], DEFAULT_CONFIG["max_velocity"])
+
+    runs_energy = []
+    classifier_rows = []
+    times = None
+
+    for k in wavenumbers:
+        cfg = {**DEFAULT_CONFIG, "wavenumber": float(k)}
+        q_sim = run_quantum_simulation(cfg, method="arrowhead")
+        times = q_sim["times"]
+        runs_energy.append((cfg, q_sim["energy"]))
+
+        verdict = classify_reactor_stability(
+            times=times,
+            energy=q_sim["energy"],
+            check_time=check_time,
+            threshold=threshold,
+            window=window,
+        )
+        classifier_rows.append({"wavenumber": float(k), **verdict})
+
+    keep_mask = times <= (DEFAULT_CONFIG["end_time"] - window)
+    valid_times = times[keep_mask]
+
+    ratios = np.array([
+        compute_remaining_energy_envelope(times, energy, window)[keep_mask]
+        for _, energy in runs_energy
+    ])
+
+    # Mask out times near/after the discrete-grid fake revival time so grid echoes aren't shown
+    last_trusted_time = np.array([
+        [min(cfg["end_time"], 0.8 * (2.0 * np.pi / (cfg["wavenumber"] * dv))) - window]
+        for cfg, _ in runs_energy
+    ])
+    ratios[valid_times[None, :] > last_trusted_time] = np.nan
+
+    fig, ax = plt.subplots(figsize=(8.2, 4.8))
+    mesh = ax.pcolormesh(
+        valid_times,
+        wavenumbers,
+        np.log10(ratios),
+        shading="auto",
+        cmap="RdYlGn_r",
+    )
+    ax.contour(
+        valid_times,
+        wavenumbers,
+        ratios,
+        levels=[threshold],
+        colors="white",
+        linewidths=2.5,
+    )
+    cbar = fig.colorbar(mesh, ax=ax, label="log$_{10}$(Remaining Energy / Starting Energy)")
+    cbar.ax.axhline(np.log10(threshold), color="white", linewidth=2.0)
+
+    ax.set_title(
+        f"Reactor Controller Decision Map: {threshold:.0%} Wave Energy Threshold\n"
+        f"(Green = Fades Safely <{threshold:.0%}, Red = Needs Control >{threshold:.0%}, White Line = {threshold:.0%} Cutoff)",
+        fontsize=10.5,
+    )
+    ax.set_xlabel("Controller Response Time  [plasma oscillation ticks]")
+    ax.set_ylabel("Wavenumber k  [per screening length]  (Shorter Waves ↑)")
+
+    out_path = FIGURES_DIR / "4_stability_threshold_heatmap.png"
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=200)
+    plt.close(fig)
+    return out_path, classifier_rows
+

@@ -1,8 +1,8 @@
-# Asad's Implementation (`asad_imp`)
+# Asad's Implementation (`gemini_imp`)
 
 A modular Quantum (Qiskit) vs. Classical (SciPy) plasma wave simulation written for clarity, direct benchmarking, and presentation-ready explanations—no physics or quantum background required.
 
-> **Navigation Tip:** Every Python file in `asad_imp/` stays concise and focused on code. All long conceptual, physics, and math explanations live right here in this `README.md`, organized into **Sections 1–5** matching each module.
+> **Navigation Tip:** Every Python file in `gemini_imp/` stays concise and focused on code. All long conceptual, physics, and math explanations live right here in this `README.md`, organized into **Sections 1–5** matching each module.
 
 ---
 
@@ -54,7 +54,7 @@ Read the files in **order 1 → 6** to follow the data from raw physics paramete
 | 2 | [hamiltonian.py](hamiltonian.py) | [Section 2](#section-2-encoding-physics-into-qubits--building-the-matrix) | Bell curve, Hamiltonian matrix $H$, initial state | `maxwellian_bell_curve`, `build_hamiltonian_matrix`, `create_initial_qubit_state` |
 | 3 | [simulation.py](simulation.py) | [Section 3](#section-3-running-the-simulation-quantum-vs-classical) | Qiskit Trotter circuit & SciPy RK45 solver | `build_qiskit_step_circuit`, `run_quantum_simulation`, `run_classical_simulation` |
 | 4 | [analysis.py](analysis.py) | [Section 4](#section-4-analysing-data-measuring-how-fast-the-wave-fades) | Peak detection & log-linear damping rate fit | `measure_damping_rate` |
-| 5 | [plotting.py](plotting.py) | [Section 5](#section-5-plotting-data-with-matplotlib) | Generates 3 PNG charts in `asad_imp/figures/` | `plot_figure_1_quantum_vs_classical`, `plot_figure_2_factors_comparison`, `plot_figure_3_quantum_vs_classical_viability` |
+| 5 | [plotting.py](plotting.py) | [Section 5](#section-5-plotting-data-with-matplotlib) | Generates 3 PNG charts in `gemini_imp/figures/` | `plot_figure_1_quantum_vs_classical`, `plot_figure_2_factors_comparison`, `plot_figure_3_quantum_vs_classical_viability` |
 | 6 | [plasma_simulation.py](plasma_simulation.py) | [Main Entry Point](#main-entry-point) | Runs Steps 1–5 in sequence & prints summary | `main` |
 
 > **Tip for reading code alongside this guide:** Open the Python file on one side of your editor and jump to the matching Section below to see *why* each formula and Qiskit call is written the way it is.
@@ -71,10 +71,10 @@ From the **root of the repository** (with your virtual environment activated):
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
-python asad_imp/plasma_simulation.py
+python gemini_imp/plasma_simulation.py
 ```
 
-This prints comparison metrics and gate-scaling stats in the terminal and writes three PNG figures into `asad_imp/figures/`:
+This prints comparison metrics and gate-scaling stats in the terminal and writes three PNG figures into `gemini_imp/figures/`:
 - `1_quantum_vs_classical_wave.png` — Wave energy decay over time (Classical RK45 vs. Qiskit Statevector vs. 2,000 Quantum Hardware Shots).
 - `2_factors_affecting_plasma.png` — Side-by-side comparison of how **Wavenumber ($k$)** and **Temperature ($T$)** change the wave's damping speed.
 - `3_quantum_vs_classical_scaling.png` — 3D reactor memory compression ($N^6$ classical numbers vs. $6 \log_2 N$ qubits) alongside the $\sim 4^n$ CNOT gate bottleneck.
@@ -214,7 +214,7 @@ $$\text{Peak\_Energy}(t) \sim \exp(2 \gamma t)$$
 
 > **Code:** [plotting.py](plotting.py) (`plot_figure_1_quantum_vs_classical`, `plot_figure_2_factors_comparison`, `plot_figure_3_quantum_vs_classical_viability`)
 
-Uses Matplotlib's non-interactive `Agg` backend so graphs save straight to PNG files in `asad_imp/figures/` without blocking on pop-up windows. Together, the 3 figures answer both halves of the research question:
+Uses Matplotlib's non-interactive `Agg` backend so graphs save straight to PNG files in `gemini_imp/figures/` without blocking on pop-up windows. Together, the 3 figures answer both halves of the research question:
 
 ### Figure 1: `1_quantum_vs_classical_wave.png` (`plot_figure_1_quantum_vs_classical`)
 - Uses `ax.semilogy()` so the Y-axis is on a logarithmic scale ($10^0, 10^{-1}, 10^{-2}, \dots$), turning exponential decay into a straight downward slope.

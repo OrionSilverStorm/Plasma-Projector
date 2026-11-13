@@ -28,3 +28,5 @@ desktop.ini
 .env
 
 # NOTE: figures/*.png are deliberately NOT ignored. The slides use them.
+.venv
+node_modules

@@ -68,7 +68,7 @@ def plot_separate_scenario_graphs(
     # --- GRAPH 1A: QUANTUM CIRCUIT SCENARIOS ---
     fig_q, axes_q = plt.subplots(1, 3, figsize=(14.5, 4.6), sharey=True)
     fig_q.suptitle(
-        "Quantum Computer (5-Qubit Fast Arrowhead Circuit): Plasma Wave Decay Across 3 Tokamak Scenarios",
+        "Quantum Circuit (5 Qubits): Plasma Wave Decay Across Scenarios",
         fontsize=13,
         fontweight="bold",
     )
@@ -83,7 +83,7 @@ def plot_separate_scenario_graphs(
             q_res["energy"],
             color=color,
             linewidth=2.0,
-            label="Quantum Circuit Statevector",
+            label="Quantum Statevector",
         )
         shot_mask = q_res["shot_energy"] > 0
         ax.semilogy(
@@ -101,13 +101,13 @@ def plot_separate_scenario_graphs(
             ":",
             color="black",
             linewidth=2.0,
-            label=f"Fitted Fade Rate = {item['q_rate']:.4f}",
+            label=f"Decay Rate = {item['q_rate']:.4f}",
         )
 
         ax.set_title(f"{scen['name']}\n({scen['short_label'].split('(')[1].rstrip(')')})", fontsize=10.5)
-        ax.set_xlabel("Time [plasma oscillation ticks]")
+        ax.set_xlabel("Time (plasma oscillation ticks)")
         if idx == 0:
-            ax.set_ylabel("Electric Field Energy = P(measure |00000⟩)")
+            ax.set_ylabel("Electric Field Energy")
         ax.set_ylim(bottom=1e-4, top=1.0)
         ax.grid(True, which="both", linestyle="--", alpha=0.4)
         ax.legend(loc="upper right", fontsize=8.5)
@@ -120,7 +120,7 @@ def plot_separate_scenario_graphs(
     # --- GRAPH 1B: CONVENTIONAL ALGORITHM SCENARIOS ---
     fig_c, axes_c = plt.subplots(1, 3, figsize=(14.5, 4.6), sharey=True)
     fig_c.suptitle(
-        "Conventional Computer (Sparse SciPy RK45 Solver): Plasma Wave Decay Across 3 Tokamak Scenarios",
+        "Classical Computer (Sparse RK45): Plasma Wave Decay Across Scenarios",
         fontsize=13,
         fontweight="bold",
     )
@@ -135,7 +135,7 @@ def plot_separate_scenario_graphs(
             c_res["energy"],
             color=color,
             linewidth=2.0,
-            label="Classical Sparse RK45 Solver",
+            label="Classical RK45 Solver",
         )
         ax.semilogy(
             c_res["times"],
@@ -143,13 +143,13 @@ def plot_separate_scenario_graphs(
             ":",
             color="black",
             linewidth=2.0,
-            label=f"Fitted Fade Rate = {item['c_rate']:.4f}",
+            label=f"Decay Rate = {item['c_rate']:.4f}",
         )
 
         ax.set_title(f"{scen['name']}\n({scen['short_label'].split('(')[1].rstrip(')')})", fontsize=10.5)
-        ax.set_xlabel("Time [plasma oscillation ticks]")
+        ax.set_xlabel("Time (plasma oscillation ticks)")
         if idx == 0:
-            ax.set_ylabel("Electric Field Energy = |state[0]|²")
+            ax.set_ylabel("Electric Field Energy")
         ax.set_ylim(bottom=1e-4, top=1.0)
         ax.grid(True, which="both", linestyle="--", alpha=0.4)
         ax.legend(loc="upper right", fontsize=8.5)
@@ -181,7 +181,7 @@ def plot_figure_1_quantum_vs_classical(
         c_res["energy"],
         color="black",
         linewidth=2.0,
-        label="Classical Computer (Sparse SciPy RK45 Solver)",
+        label="Classical (Sparse RK45)",
     )
     ax.semilogy(
         q_res["times"],
@@ -189,7 +189,7 @@ def plot_figure_1_quantum_vs_classical(
         "--",
         color="#0072B2",
         linewidth=2.0,
-        label="Quantum Circuit (5-Qubit Fast Arrowhead Trotter)",
+        label="Quantum Circuit (5 Qubits)",
     )
 
     shot_mask = q_res["shot_energy"] > 0
@@ -200,7 +200,7 @@ def plot_figure_1_quantum_vs_classical(
         color="#E69F00",
         markersize=4,
         alpha=0.8,
-        label="Quantum Hardware Readout (2,000 shots)",
+        label="Hardware Readout (2,000 shots)",
     )
 
     ax.semilogy(
@@ -209,15 +209,15 @@ def plot_figure_1_quantum_vs_classical(
         ":",
         color="#D55E00",
         linewidth=2.0,
-        label=f"Fitted Decay Slope (rate = {damping_rate:.4f})",
+        label=f"Decay Envelope (rate = {damping_rate:.4f})",
     )
 
     ax.set_title(
-        f"Baseline Wave Energy Decay: Quantum vs. Classical "
-        f"(k={config['wavenumber']}, T={config['temperature']}, {config['n_qubits']} Qubits)"
+        f"Wave Energy Decay: Quantum vs. Classical "
+        f"(k={config['wavenumber']}, T={config['temperature']})"
     )
-    ax.set_xlabel("Time [plasma oscillation ticks]")
-    ax.set_ylabel("Electric Field Energy = P(measure |00000⟩)")
+    ax.set_xlabel("Time (plasma oscillation ticks)")
+    ax.set_ylabel("Electric Field Energy")
     ax.set_ylim(bottom=1e-4, top=1.0)
     ax.grid(True, which="both", linestyle="--", alpha=0.4)
     ax.legend(loc="upper right")
@@ -247,11 +247,11 @@ def plot_figure_2_factors_comparison() -> Path:
         q_rates_k.append(abs(measure_damping_rate(q_sim["times"], q_sim["energy"], cfg)[0]))
         c_rates_k.append(abs(measure_damping_rate(c_sim["times"], c_sim["energy"], cfg)[0]))
 
-    ax_k.plot(wavenumbers, c_rates_k, "s-", color="black", label="Classical Sparse Solver")
-    ax_k.plot(wavenumbers, q_rates_k, "o--", color="#0072B2", label="Quantum Fast Arrowhead (5 Qubits)")
-    ax_k.set_title("Factor 1: Effect of Wavenumber (k)")
-    ax_k.set_xlabel("Wavenumber k  (Higher = Shorter Wavelength)")
-    ax_k.set_ylabel("Wave Fade Speed |damping rate|")
+    ax_k.plot(wavenumbers, c_rates_k, "s-", color="black", label="Classical (Sparse RK45)")
+    ax_k.plot(wavenumbers, q_rates_k, "o--", color="#0072B2", label="Quantum (5 Qubits)")
+    ax_k.set_title("Damping Rate vs. Wavenumber (k)")
+    ax_k.set_xlabel("Wavenumber k (Shorter Wavelength →)")
+    ax_k.set_ylabel("Damping Rate |γ|")
     ax_k.grid(True, linestyle="--", alpha=0.4)
     ax_k.legend()
 
@@ -265,11 +265,11 @@ def plot_figure_2_factors_comparison() -> Path:
         q_rates_t.append(abs(measure_damping_rate(q_sim["times"], q_sim["energy"], cfg)[0]))
         c_rates_t.append(abs(measure_damping_rate(c_sim["times"], c_sim["energy"], cfg)[0]))
 
-    ax_t.plot(temperatures, c_rates_t, "s-", color="black", label="Classical Sparse Solver")
-    ax_t.plot(temperatures, q_rates_t, "o--", color="#D55E00", label="Quantum Fast Arrowhead (5 Qubits)")
-    ax_t.set_title("Factor 2: Effect of Electron Temperature (T)")
-    ax_t.set_xlabel("Plasma Temperature T  (Higher = Faster Electrons)")
-    ax_t.set_ylabel("Wave Fade Speed |damping rate|")
+    ax_t.plot(temperatures, c_rates_t, "s-", color="black", label="Classical (Sparse RK45)")
+    ax_t.plot(temperatures, q_rates_t, "o--", color="#D55E00", label="Quantum (5 Qubits)")
+    ax_t.set_title("Damping Rate vs. Temperature (T)")
+    ax_t.set_xlabel("Temperature T (Hotter Electrons →)")
+    ax_t.set_ylabel("Damping Rate |γ|")
     ax_t.grid(True, linestyle="--", alpha=0.4)
     ax_t.legend()
 

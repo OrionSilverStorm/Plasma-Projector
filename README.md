@@ -1,4 +1,4 @@
-# Tokamak Plasma Wave Simulation: Quantum Circuit vs. Conventional Computer (`gemini_imp`)
+# Tokamak Plasma Wave Simulation: Quantum Circuit vs. Conventional Computer
 
 A beginner-friendly, modular **Quantum (Qiskit)** vs. **Conventional (SciPy)** plasma wave simulation built so anyone—**with zero physics or quantum computing background**—can immediately see:
 1. **What the problem is** (keeping a nuclear fusion reactor stable).
@@ -107,7 +107,7 @@ Originally, converting the $2^n \times 2^n$ Hamiltonian matrix $H$ into quantum 
 
 ## 4. Complete Guide to All 6 Generated Graphs (What Each Graph Explains & Why We Need It)
 
-Running `python gemini_imp/plasma_simulation.py` generates **6 PNG figures** in `gemini_imp/figures/`. Here is a clear, moderate-depth breakdown of what each graph shows, how to read it, and *why* it is needed to answer our research question.
+Running `python plasma_simulation.py` generates **6 PNG figures** in `figures/`. Here is a clear, moderate-depth breakdown of what each graph shows, how to read it, and *why* it is needed to answer our research question.
 
 ---
 
@@ -191,7 +191,7 @@ Running `python gemini_imp/plasma_simulation.py` generates **6 PNG figures** in 
 | **2** | [`hamiltonian.py`](hamiltonian.py) | Maxwellian bell curve, Arrowhead matrix $H$, Gauss's law start state | `maxwellian_bell_curve`, `build_hamiltonian_matrix`, `create_initial_qubit_state` |
 | **3** | [`simulation.py`](simulation.py) | Fast Arrowhead circuit, Naive Pauli circuit, Sparse RK45 solver, FLOPs/gate benchmarks | `build_fast_arrowhead_step_circuit`, `run_quantum_simulation`, `run_classical_simulation`, `benchmark_efficiency_scaling` |
 | **4** | [`analysis.py`](analysis.py) | Peak detection, log-linear damping rate fit, 10% threshold envelope & shot classifier | `measure_damping_rate`, `compute_remaining_energy_envelope`, `classify_reactor_stability` |
-| **5** | [`plotting.py`](plotting.py) | Generates all 6 PNG charts in `gemini_imp/figures/` | `plot_separate_scenario_graphs`, `plot_figure_1_quantum_vs_classical`, `plot_figure_2_factors_comparison`, `plot_figure_3_quantum_vs_classical_viability`, `plot_figure_4_stability_heatmap` |
+| **5** | [`plotting.py`](plotting.py) | Generates all 6 PNG charts in `figures/` | `plot_separate_scenario_graphs`, `plot_figure_1_quantum_vs_classical`, `plot_figure_2_factors_comparison`, `plot_figure_3_quantum_vs_classical_viability`, `plot_figure_4_stability_heatmap` |
 | **6** | [`plasma_simulation.py`](plasma_simulation.py) | Main script that runs Stages 1–5 and prints clear terminal output | `main` |
 
 ---
@@ -238,13 +238,13 @@ From the repository root:
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
-python gemini_imp/plasma_simulation.py
+python plasma_simulation.py
 
 # Linux / macOS
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-python gemini_imp/plasma_simulation.py
+python plasma_simulation.py
 ```
 
 ---

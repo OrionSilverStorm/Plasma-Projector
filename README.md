@@ -26,6 +26,35 @@ A beginner-friendly, modular **Quantum (Qiskit)** vs. **Conventional (SciPy)** p
 
 ## 1. What Is the Problem? (Plain-English Physics)
 
+### What Does a Tokamak Look Like?
+
+A **tokamak** is a donut-shaped metal chamber wrapped in huge magnets. The magnets hold the plasma in the middle of the donut so it never touches the walls.
+
+<p align="center">
+  <img src="images/tokamak_interior_west.jpg" alt="Inside the WEST tokamak in France: a metal donut-shaped chamber with a technician standing inside for scale" width="640">
+  <br>
+  <em>Inside the WEST tokamak (France) during maintenance. Note the person on the right for scale. When running, this empty space is filled with glowing plasma. Photo: Christophe Roux / IRFM, <a href="https://commons.wikimedia.org/wiki/File:Int%C3%A9rieur_Tokamak_WEST.jpg">CC BY 4.0</a>.</em>
+</p>
+
+<p align="center">
+  <img src="images/iter_tokamak.jpg" alt="Cut-away drawing of the ITER tokamak inside its building" width="640">
+  <br>
+  <em>Cut-away drawing of ITER, the world's largest tokamak, being built in France. The donut-shaped chamber sits in the centre, surrounded by magnets and support machinery. Image: Oak Ridge National Laboratory, <a href="https://commons.wikimedia.org/wiki/File:ITER_Tokamak_and_Plant_Systems_(2016)_(41783636452).jpg">CC BY 2.0</a>.</em>
+</p>
+
+<table align="center"><tr>
+<td><img src="images/tokamak_magnetic_fields.png" alt="Diagram of the magnetic fields in a tokamak" width="220"></td>
+<td width="420">
+<b>How the magnets hold the plasma (diagram, left):</b><br>
+<b>Top:</b> coils wrapped around the donut make a magnetic field running the long way round the ring.<br>
+<b>Middle:</b> an electric current driven through the plasma itself makes a second field that loops around the tube.<br>
+<b>Bottom:</b> the two fields add up to a twisted, spiral field. Charged particles follow these spiral lines, so they stay trapped inside the donut instead of hitting the walls.<br>
+<em>Diagram: US Department of Energy, <a href="https://commons.wikimedia.org/wiki/File:Tokamak_fields_lg.png">public domain</a>.</em>
+</td>
+</tr></table>
+
+### What Goes Wrong Inside?
+
 In a **tokamak** nuclear fusion reactor, we trap super-hot charged gas (**plasma**) inside a magnetic bottle at over 100 million degrees. Because electrons are negatively charged, whenever a crowd of electrons bunches up in one spot, they push each other apart via an **electric field**, overshoot like a stretched spring, and slosh back and forth. This sloshing is a **plasma wave** (an electric ripple).
 
 When a ripple forms inside a fusion reactor, one of two things happens:
@@ -193,6 +222,16 @@ Running `python plasma_simulation.py` generates **6 PNG figures** in `figures/`.
 | **4** | [`analysis.py`](analysis.py) | Peak detection, log-linear damping rate fit, 10% threshold envelope & shot classifier | `measure_damping_rate`, `compute_remaining_energy_envelope`, `classify_reactor_stability` |
 | **5** | [`plotting.py`](plotting.py) | Generates all 6 PNG charts in `figures/` | `plot_separate_scenario_graphs`, `plot_figure_1_quantum_vs_classical`, `plot_figure_2_factors_comparison`, `plot_figure_3_quantum_vs_classical_viability`, `plot_figure_4_stability_heatmap` |
 | **6** | [`plasma_simulation.py`](plasma_simulation.py) | Main script that runs Stages 1–5 and prints clear terminal output | `main` |
+
+**Other folders:**
+
+| Folder / File | What's Inside |
+|---|---|
+| [`figures/`](figures) | The 6 graphs the program generates (overwritten every run). |
+| [`images/`](images) | Reference photos and diagrams of real tokamaks used in this README. |
+| [`reports/`](reports) | The written project report (`project_report_final.pdf`) and its review draft (`project_report_review.pdf`). |
+| [`archive/`](archive) | An earlier version of the project, kept for reference. Not needed to run anything. |
+| [`requirements.txt`](requirements.txt) | The Python libraries to install (Qiskit, NumPy, SciPy, Matplotlib). |
 
 ---
 

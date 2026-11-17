@@ -2,7 +2,7 @@
 Plasma Wave Simulation: Quantum (Qiskit) vs. Classical Computer (Main Entry Point).
 
 Author: Asad
-How to run: python gemini_imp/plasma_simulation.py
+How to run: python plasma_simulation.py
 
 Walks through five clear stages:
   [1/5] Separate Multi-Scenario Graphs (Quantum Circuit vs. Conventional Algorithm across 3 scenarios)
@@ -102,7 +102,7 @@ def main() -> None:
             f"Classical = {row['classical_flops']:,} FLOPs"
         )
     print(f"  -> Saved Scaling & Efficiency Graph: {fig3_path}")
-    print("\nAll simulations finished! Check `gemini_imp/figures/` for your 6 graphs.")
+    print("\nAll simulations finished! Check `figures/` for your 6 graphs.")
 
 
 if __name__ == "__main__":

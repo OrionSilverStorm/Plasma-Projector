@@ -1,7 +1,7 @@
 """
 Section 5: Plotting Data with Matplotlib.
 
-Generates the PNG figures in `gemini_imp/figures/`:
+Generates the PNG figures in `figures/`:
 1. `1a_quantum_circuit_scenarios.png`     : Dedicated graph of Quantum Circuit outputs across 3 scenarios.
 2. `1b_classical_algorithm_scenarios.png` : Dedicated graph of Conventional Algorithm outputs across the same 3 scenarios.
 3. `1_quantum_vs_classical_wave.png`      : Direct overlay of Quantum vs. Classical on the baseline wave.
